@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, CreditCard, Shield, Target, Wallet, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, CreditCard, Wallet, Target, Shield, Activity, Settings as SettingsIcon, LogOut, Menu, X } from 'lucide-react';
 import { useLanguage } from '../../i18n';
 import { useAuth } from '../../hooks/useAuth';
 import type { PageId } from '../../types';
@@ -17,8 +17,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) =
   const menuItems: { icon: React.FC<any>; label: string; id: PageId }[] = [
     { icon: LayoutDashboard, label: t('common.dashboard'), id: 'dashboard' },
     { icon: CreditCard, label: t('common.transactions'), id: 'transactions' },
+    { icon: Wallet, label: t('budgets.title'), id: 'budgets' },
+    { icon: Activity, label: t('reports.title'), id: 'reports' },
     { icon: Target, label: t('common.goals'), id: 'goals' },
     { icon: Shield, label: t('common.vault'), id: 'vault' },
+    { icon: SettingsIcon, label: t('common.settings'), id: 'settings' },
   ];
 
   const handlePageChange = (page: PageId) => {

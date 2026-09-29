@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowUpRight, ArrowDownRight, Search, Filter, Plus, Download, Eye, Edit, Trash2, X, AlertCircle, Tag } from 'lucide-react';
 import { useTransactions } from '../../hooks/useTransactions';
 import { useRegion } from '../../hooks/useRegion';
@@ -17,7 +17,12 @@ const CATEGORIES = [
   { name: 'Autre', type: 'expense' },
 ];
 
-export const TransactionList: React.FC = () => {
+interface TransactionListProps {
+  quickAddSignal?: boolean;
+  onQuickAddConsumed?: () => void;
+}
+
+export const TransactionList: React.FC<TransactionListProps> = ({ quickAddSignal, onQuickAddConsumed }) => {
   const { t, lang } = useLanguage();
   const { formatCurrency } = useRegion();
   const { transactions, loading, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
@@ -29,6 +34,14 @@ export const TransactionList: React.FC = () => {
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (quickAddSignal) {
+      setEditingTx(null);
+      setShowModal(true);
+      onQuickAddConsumed?.();
+    }
+  }, [quickAddSignal]);
 
   const filtered = transactions.filter(tx => {
     const matchesSearch = tx.description.toLowerCase().includes(searchTerm.toLowerCase()) ||

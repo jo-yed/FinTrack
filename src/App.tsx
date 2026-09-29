@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthForm } from './components/Auth/AuthForm';
 import { Sidebar } from './components/Layout/Sidebar';
 import { Header } from './components/Layout/Header';
+import { CommandPalette } from './components/Layout/CommandPalette';
 import { Dashboard } from './components/Dashboard/Dashboard';
 import { TransactionList } from './components/Transactions/TransactionList';
+import { BudgetList } from './components/Budgets/BudgetList';
+import { Reports } from './components/Reports/Reports';
 import { VaultList } from './components/Vault/VaultList';
 import { GoalList } from './components/Goals/GoalList';
+import { Settings } from './components/Settings/Settings';
 import { useAuth } from './hooks/useAuth';
 import { useLanguage } from './i18n';
 import { Wallet, Loader2 } from 'lucide-react';
@@ -15,6 +19,26 @@ function App() {
   const { session, loading } = useAuth();
   const { t } = useLanguage();
   const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [quickAddTx, setQuickAddTx] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCmdOpen(prev => !prev);
+      }
+      if (e.key === 'n' && !cmdOpen && session) {
+        const target = e.target as HTMLElement;
+        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && target.tagName !== 'SELECT') {
+          e.preventDefault();
+          setQuickAddTx(true);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [cmdOpen, session]);
 
   if (loading) {
     return (
@@ -38,14 +62,27 @@ function App() {
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
       <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
       <div className="flex-1 flex flex-col min-w-0">
-        <Header />
+        <Header onOpenCommand={() => setCmdOpen(true)} />
         <main className="flex-1 p-6 lg:p-8 overflow-x-hidden">
           {currentPage === 'dashboard' && <Dashboard onNavigate={setCurrentPage} />}
-          {currentPage === 'transactions' && <TransactionList />}
+          {currentPage === 'transactions' && <TransactionList quickAddSignal={quickAddTx} onQuickAddConsumed={() => setQuickAddTx(false)} />}
+          {currentPage === 'budgets' && <BudgetList />}
+          {currentPage === 'reports' && <Reports />}
           {currentPage === 'vault' && <VaultList />}
           {currentPage === 'goals' && <GoalList />}
+          {currentPage === 'settings' && <Settings />}
         </main>
       </div>
+
+      <CommandPalette
+        open={cmdOpen}
+        onClose={() => setCmdOpen(false)}
+        onNavigate={setCurrentPage}
+        onQuickAdd={() => {
+          setCurrentPage('transactions');
+          setQuickAddTx(true);
+        }}
+      />
     </div>
   );
 }

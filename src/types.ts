@@ -54,7 +54,16 @@ export interface Category {
   created_at: string;
 }
 
-export type PageId = 'dashboard' | 'transactions' | 'vault' | 'goals';
+export interface Budget {
+  id: string;
+  user_id: string;
+  category: string;
+  limit_amount: number;
+  month: string;
+  created_at: string;
+}
+
+export type PageId = 'dashboard' | 'transactions' | 'budgets' | 'reports' | 'vault' | 'goals' | 'settings';
 
 export type Language = 'fr' | 'en';
 
