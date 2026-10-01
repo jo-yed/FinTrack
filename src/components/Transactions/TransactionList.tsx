@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ArrowUpRight, ArrowDownRight, Search, Filter, Plus, Download, Eye, Edit, Trash2, X, AlertCircle, Tag } from 'lucide-react';
 import { useTransactions } from '../../hooks/useTransactions';
+import { useFamilyMembers } from '../../hooks/useFamilyMembers';
 import { useRegion } from '../../hooks/useRegion';
 import { useLanguage } from '../../i18n';
-import type { Transaction } from '../../types';
+import type { Transaction, FamilyMember } from '../../types';
 
 const CATEGORIES = [
   { name: 'Salaire', type: 'income' },
@@ -26,6 +27,13 @@ export const TransactionList: React.FC<TransactionListProps> = ({ quickAddSignal
   const { t, lang } = useLanguage();
   const { formatCurrency } = useRegion();
   const { transactions, loading, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
+  const { members } = useFamilyMembers();
+
+  const memberMap = useMemo(() => {
+    const map: Record<string, FamilyMember> = {};
+    members.forEach(m => { map[m.id] = m; });
+    return map;
+  }, [members]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -224,6 +232,17 @@ export const TransactionList: React.FC<TransactionListProps> = ({ quickAddSignal
                       <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">{tx.category}</span>
                       <span>•</span>
                       <span>{new Date(tx.date).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      {tx.family_member_id && memberMap[tx.family_member_id] && (
+                        <>
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ backgroundColor: memberMap[tx.family_member_id].avatar_color }}>
+                              {memberMap[tx.family_member_id].name.charAt(0).toUpperCase()}
+                            </span>
+                            <span className="text-gray-500 dark:text-gray-400">{memberMap[tx.family_member_id].name}</span>
+                          </span>
+                        </>
+                      )}
                       {tx.tags.length > 0 && (
                         <>
                           <span>•</span>
@@ -319,12 +338,14 @@ interface TransactionModalProps {
 
 const TransactionModal: React.FC<TransactionModalProps> = ({ editingTx, onClose, onSave }) => {
   const { t } = useLanguage();
+  const { members } = useFamilyMembers();
   const [type, setType] = useState<'income' | 'expense'>(editingTx?.type || 'expense');
   const [category, setCategory] = useState(editingTx?.category || 'Alimentation');
   const [amount, setAmount] = useState(editingTx?.amount.toString() || '');
   const [description, setDescription] = useState(editingTx?.description || '');
   const [date, setDate] = useState(editingTx?.date || new Date().toISOString().split('T')[0]);
   const [tagsInput, setTagsInput] = useState(editingTx?.tags.join(', ') || '');
+  const [familyMemberId, setFamilyMemberId] = useState<string | null>(editingTx?.family_member_id || null);
   const [saving, setSaving] = useState(false);
 
   const availableCategories = CATEGORIES.filter(c => c.type === type || c.name === 'Autre');
@@ -341,6 +362,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ editingTx, onClose,
       date,
       tags,
       account_id: null,
+      family_member_id: familyMemberId,
     });
     setSaving(false);
   };
@@ -439,6 +461,35 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ editingTx, onClose,
               ))}
             </div>
           </div>
+
+          {members.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('transactions.familyMember')}</label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFamilyMemberId(null)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${!familyMemberId ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                >
+                  {t('family.none')}
+                </button>
+                {members.map(m => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setFamilyMemberId(m.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${familyMemberId === m.id ? 'text-white shadow-md' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                    style={familyMemberId === m.id ? { backgroundColor: m.avatar_color } : {}}
+                  >
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ backgroundColor: m.avatar_color }}>
+                      {m.name.charAt(0).toUpperCase()}
+                    </span>
+                    {m.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('transactions.tags')}</label>

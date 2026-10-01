@@ -19,6 +19,7 @@ export interface Transaction {
   description: string;
   date: string;
   tags: string[];
+  family_member_id: string | null;
   created_at: string;
 }
 
@@ -63,7 +64,17 @@ export interface Budget {
   created_at: string;
 }
 
-export type PageId = 'dashboard' | 'transactions' | 'budgets' | 'reports' | 'vault' | 'goals' | 'settings';
+export interface FamilyMember {
+  id: string;
+  user_id: string;
+  name: string;
+  role: string;
+  avatar_color: string;
+  monthly_allowance: number;
+  created_at: string;
+}
+
+export type PageId = 'dashboard' | 'transactions' | 'budgets' | 'reports' | 'family' | 'vault' | 'goals' | 'settings';
 
 export type Language = 'fr' | 'en';
 
