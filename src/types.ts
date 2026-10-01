@@ -74,7 +74,7 @@ export interface FamilyMember {
   created_at: string;
 }
 
-export type PageId = 'dashboard' | 'transactions' | 'budgets' | 'reports' | 'family' | 'vault' | 'goals' | 'settings';
+export type PageId = 'dashboard' | 'transactions' | 'budgets' | 'reports' | 'family' | 'accounts' | 'vault' | 'goals' | 'settings';
 
 export type Language = 'fr' | 'en';
 

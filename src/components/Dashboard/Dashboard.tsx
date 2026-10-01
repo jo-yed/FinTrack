@@ -51,7 +51,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       <div className="flex items-center justify-between animate-fade-in">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{t('dashboard.title')}</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Vue d'ensemble de vos finances</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{t('dashboard.overview')}</p>
         </div>
         <button
           onClick={() => onNavigate('transactions')}

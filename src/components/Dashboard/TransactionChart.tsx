@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useRegion } from '../../hooks/useRegion';
+import { useLanguage } from '../../i18n';
 import type { Transaction } from '../../types';
 
 interface TransactionChartProps {
@@ -9,21 +10,22 @@ interface TransactionChartProps {
 
 export const TransactionChart: React.FC<TransactionChartProps> = ({ transactions }) => {
   const { formatCurrency } = useRegion();
+  const { t, lang } = useLanguage();
 
   const monthlyData = useMemo(() => {
     const months: { label: string; key: string }[] = [
-      { label: 'Jan', key: '01' },
-      { label: 'Fév', key: '02' },
-      { label: 'Mar', key: '03' },
-      { label: 'Avr', key: '04' },
-      { label: 'Mai', key: '05' },
-      { label: 'Juin', key: '06' },
-      { label: 'Juil', key: '07' },
-      { label: 'Août', key: '08' },
-      { label: 'Sep', key: '09' },
-      { label: 'Oct', key: '10' },
-      { label: 'Nov', key: '11' },
-      { label: 'Déc', key: '12' },
+      { label: lang === 'fr' ? 'Jan' : 'Jan', key: '01' },
+      { label: lang === 'fr' ? 'Fév' : 'Feb', key: '02' },
+      { label: lang === 'fr' ? 'Mar' : 'Mar', key: '03' },
+      { label: lang === 'fr' ? 'Avr' : 'Apr', key: '04' },
+      { label: lang === 'fr' ? 'Mai' : 'May', key: '05' },
+      { label: lang === 'fr' ? 'Juin' : 'Jun', key: '06' },
+      { label: lang === 'fr' ? 'Juil' : 'Jul', key: '07' },
+      { label: lang === 'fr' ? 'Août' : 'Aug', key: '08' },
+      { label: lang === 'fr' ? 'Sep' : 'Sep', key: '09' },
+      { label: lang === 'fr' ? 'Oct' : 'Oct', key: '10' },
+      { label: lang === 'fr' ? 'Nov' : 'Nov', key: '11' },
+      { label: lang === 'fr' ? 'Déc' : 'Dec', key: '12' },
     ];
 
     return months.map(({ label, key }) => {
@@ -41,22 +43,22 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({ transactions
 
       return { month: label, income, expenses };
     });
-  }, [transactions]);
+  }, [transactions, lang]);
 
   const hasData = transactions.length > 0;
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 animate-slide-up" style={{ animationDelay: '100ms' }}>
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-base font-semibold text-gray-900 dark:text-white">Évolution Mensuelle</h3>
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white">{t('dashboard.monthlyEvolution')}</h3>
         <div className="flex gap-4 text-xs">
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-emerald-500" />
-            <span className="text-gray-500 dark:text-gray-400">Revenus</span>
+            <span className="text-gray-500 dark:text-gray-400">{t('transactions.income')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-red-500" />
-            <span className="text-gray-500 dark:text-gray-400">Dépenses</span>
+            <span className="text-gray-500 dark:text-gray-400">{t('transactions.expense')}</span>
           </div>
         </div>
       </div>
@@ -106,7 +108,7 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({ transactions
         </div>
       ) : (
         <div className="h-72 flex items-center justify-center text-gray-400 dark:text-gray-600 text-sm">
-          Aucune donnée à afficher
+          {t('common.noData')}
         </div>
       )}
     </div>

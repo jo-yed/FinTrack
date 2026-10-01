@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowUpRight, ArrowDownRight, Search, Filter, Plus, Download, Eye, Edit, Trash2, X, AlertCircle, Tag } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Search, Filter, Plus, Download, Eye, Edit, Trash2, X, AlertCircle, Tag, CreditCard } from 'lucide-react';
 import { useTransactions } from '../../hooks/useTransactions';
 import { useFamilyMembers } from '../../hooks/useFamilyMembers';
+import { useAccounts } from '../../hooks/useAccounts';
 import { useRegion } from '../../hooks/useRegion';
 import { useLanguage } from '../../i18n';
-import type { Transaction, FamilyMember } from '../../types';
+import type { Transaction, FamilyMember, Account } from '../../types';
 
 const CATEGORIES = [
   { name: 'Salaire', type: 'income' },
@@ -28,12 +29,19 @@ export const TransactionList: React.FC<TransactionListProps> = ({ quickAddSignal
   const { formatCurrency } = useRegion();
   const { transactions, loading, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
   const { members } = useFamilyMembers();
+  const { accounts } = useAccounts();
 
   const memberMap = useMemo(() => {
     const map: Record<string, FamilyMember> = {};
     members.forEach(m => { map[m.id] = m; });
     return map;
   }, [members]);
+
+  const accountMap = useMemo(() => {
+    const map: Record<string, Account> = {};
+    accounts.forEach(a => { map[a.id] = a; });
+    return map;
+  }, [accounts]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -232,6 +240,17 @@ export const TransactionList: React.FC<TransactionListProps> = ({ quickAddSignal
                       <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">{tx.category}</span>
                       <span>•</span>
                       <span>{new Date(tx.date).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      {tx.account_id && accountMap[tx.account_id] && (
+                        <>
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ backgroundColor: accountMap[tx.account_id].color }}>
+                              <CreditCard className="w-2 h-2" />
+                            </span>
+                            <span className="text-gray-500 dark:text-gray-400">{accountMap[tx.account_id].name}</span>
+                          </span>
+                        </>
+                      )}
                       {tx.family_member_id && memberMap[tx.family_member_id] && (
                         <>
                           <span>•</span>
@@ -339,6 +358,7 @@ interface TransactionModalProps {
 const TransactionModal: React.FC<TransactionModalProps> = ({ editingTx, onClose, onSave }) => {
   const { t } = useLanguage();
   const { members } = useFamilyMembers();
+  const { accounts } = useAccounts();
   const [type, setType] = useState<'income' | 'expense'>(editingTx?.type || 'expense');
   const [category, setCategory] = useState(editingTx?.category || 'Alimentation');
   const [amount, setAmount] = useState(editingTx?.amount.toString() || '');
@@ -346,6 +366,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ editingTx, onClose,
   const [date, setDate] = useState(editingTx?.date || new Date().toISOString().split('T')[0]);
   const [tagsInput, setTagsInput] = useState(editingTx?.tags.join(', ') || '');
   const [familyMemberId, setFamilyMemberId] = useState<string | null>(editingTx?.family_member_id || null);
+  const [accountId, setAccountId] = useState<string | null>(editingTx?.account_id || null);
   const [saving, setSaving] = useState(false);
 
   const availableCategories = CATEGORIES.filter(c => c.type === type || c.name === 'Autre');
@@ -361,7 +382,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ editingTx, onClose,
       description,
       date,
       tags,
-      account_id: null,
+      account_id: accountId,
       family_member_id: familyMemberId,
     });
     setSaving(false);
@@ -461,6 +482,33 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ editingTx, onClose,
               ))}
             </div>
           </div>
+
+          {accounts.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('transactions.account')}</label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAccountId(null)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${!accountId ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                >
+                  {t('accounts.none')}
+                </button>
+                {accounts.map(a => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => setAccountId(a.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${accountId === a.id ? 'text-white shadow-md' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                    style={accountId === a.id ? { backgroundColor: a.color } : {}}
+                  >
+                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: a.color }} />
+                    {a.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {members.length > 0 && (
             <div>

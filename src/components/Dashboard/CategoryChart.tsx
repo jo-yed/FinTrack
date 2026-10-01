@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useRegion } from '../../hooks/useRegion';
+import { useLanguage } from '../../i18n';
 import type { Transaction } from '../../types';
 
 interface CategoryChartProps {
@@ -11,6 +12,7 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#06B6D4', '#EC4899'
 
 export const CategoryChart: React.FC<CategoryChartProps> = ({ transactions }) => {
   const { formatCurrency } = useRegion();
+  const { t } = useLanguage();
 
   const categoryData = useMemo(() => {
     const expenses = transactions.filter(t => t.type === 'expense');
@@ -29,7 +31,7 @@ export const CategoryChart: React.FC<CategoryChartProps> = ({ transactions }) =>
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 animate-slide-up" style={{ animationDelay: '200ms' }}>
-      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-6">Dépenses par Catégorie</h3>
+      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-6">{t('dashboard.expensesByCategory')}</h3>
 
       {hasData ? (
         <div className="space-y-4">
@@ -83,7 +85,7 @@ export const CategoryChart: React.FC<CategoryChartProps> = ({ transactions }) =>
         </div>
       ) : (
         <div className="h-64 flex items-center justify-center text-gray-400 dark:text-gray-600 text-sm">
-          Aucune dépense à afficher
+          {t('dashboard.noExpenses')}
         </div>
       )}
     </div>

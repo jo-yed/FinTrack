@@ -10,6 +10,7 @@ import { Reports } from './components/Reports/Reports';
 import { VaultList } from './components/Vault/VaultList';
 import { GoalList } from './components/Goals/GoalList';
 import { FamilyList } from './components/Family/FamilyList';
+import { AccountList } from './components/Accounts/AccountList';
 import { Settings } from './components/Settings/Settings';
 import { useAuth } from './hooks/useAuth';
 import { useLanguage } from './i18n';
@@ -71,6 +72,7 @@ function App() {
           {currentPage === 'reports' && <Reports />}
           {currentPage === 'vault' && <VaultList />}
           {currentPage === 'family' && <FamilyList />}
+          {currentPage === 'accounts' && <AccountList />}
           {currentPage === 'goals' && <GoalList />}
           {currentPage === 'settings' && <Settings />}
         </main>

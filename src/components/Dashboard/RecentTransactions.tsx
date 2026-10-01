@@ -11,17 +11,17 @@ interface RecentTransactionsProps {
 
 export const RecentTransactions: React.FC<RecentTransactionsProps> = ({ transactions, onViewAll }) => {
   const { formatCurrency } = useRegion();
-  const { lang } = useLanguage();
+  const { t, lang } = useLanguage();
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden animate-slide-up" style={{ animationDelay: '150ms' }}>
       <div className="flex items-center justify-between p-6 pb-4">
-        <h3 className="text-base font-semibold text-gray-900 dark:text-white">Transactions Récentes</h3>
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white">{t('dashboard.recentTransactions')}</h3>
         <button
           onClick={onViewAll}
           className="flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:gap-2 transition-all font-medium"
         >
-          Voir tout
+          {t('dashboard.viewAll')}
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
@@ -29,7 +29,7 @@ export const RecentTransactions: React.FC<RecentTransactionsProps> = ({ transact
       <div className="divide-y divide-gray-100 dark:divide-gray-800">
         {transactions.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-400 dark:text-gray-600">
-            Aucune transaction pour le moment
+            {t('transactions.noTransactions')}
           </div>
         ) : (
           transactions.slice(0, 6).map((tx) => (
