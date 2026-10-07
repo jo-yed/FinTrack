@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowUpRight, ArrowDownRight, Search, Filter, Plus, Download, Eye, Edit, Trash2, X, AlertCircle, Tag, CreditCard } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Search, Filter, Plus, Download, Eye, Edit, Trash2, X, AlertCircle, Tag, CreditCard, Repeat } from 'lucide-react';
 import { useTransactions } from '../../hooks/useTransactions';
 import { useFamilyMembers } from '../../hooks/useFamilyMembers';
 import { useAccounts } from '../../hooks/useAccounts';
@@ -240,6 +240,15 @@ export const TransactionList: React.FC<TransactionListProps> = ({ quickAddSignal
                       <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">{tx.category}</span>
                       <span>•</span>
                       <span>{new Date(tx.date).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      {tx.is_recurring && (
+                        <>
+                          <span>•</span>
+                          <span className="flex items-center gap-1 text-blue-500 dark:text-blue-400">
+                            <Repeat className="w-3 h-3" />
+                            {t(`transactions.frequency.${tx.recurrence_frequency}`)}
+                          </span>
+                        </>
+                      )}
                       {tx.account_id && accountMap[tx.account_id] && (
                         <>
                           <span>•</span>
@@ -367,6 +376,8 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ editingTx, onClose,
   const [tagsInput, setTagsInput] = useState(editingTx?.tags.join(', ') || '');
   const [familyMemberId, setFamilyMemberId] = useState<string | null>(editingTx?.family_member_id || null);
   const [accountId, setAccountId] = useState<string | null>(editingTx?.account_id || null);
+  const [isRecurring, setIsRecurring] = useState(editingTx?.is_recurring || false);
+  const [recurrenceFreq, setRecurrenceFreq] = useState<'weekly' | 'monthly' | 'yearly' | null>(editingTx?.recurrence_frequency || 'monthly');
   const [saving, setSaving] = useState(false);
 
   const availableCategories = CATEGORIES.filter(c => c.type === type || c.name === 'Autre');
@@ -384,6 +395,10 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ editingTx, onClose,
       tags,
       account_id: accountId,
       family_member_id: familyMemberId,
+      is_recurring: isRecurring,
+      recurrence_frequency: isRecurring ? recurrenceFreq : null,
+      recurrence_parent_id: null,
+      next_recurrence_date: null,
     });
     setSaving(false);
   };
@@ -538,6 +553,48 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ editingTx, onClose,
               </div>
             </div>
           )}
+
+          {/* Recurring toggle */}
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => { setIsRecurring(!isRecurring); if (!isRecurring && !recurrenceFreq) setRecurrenceFreq('monthly'); }}
+              className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                isRecurring
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                  : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isRecurring ? 'bg-blue-600' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                <Repeat className={`w-5 h-5 ${isRecurring ? 'text-white' : 'text-gray-400'}`} />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{t('transactions.recurring')}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">{t('transactions.recurringDesc')}</p>
+              </div>
+              <div className={`w-11 h-6 rounded-full transition-all relative ${isRecurring ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${isRecurring ? 'left-5' : 'left-0.5'}`} />
+              </div>
+            </button>
+            {isRecurring && (
+              <div className="flex gap-2 pl-2">
+                {(['weekly', 'monthly', 'yearly'] as const).map(freq => (
+                  <button
+                    key={freq}
+                    type="button"
+                    onClick={() => setRecurrenceFreq(freq)}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                      recurrenceFreq === freq
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {t(`transactions.frequency.${freq}`)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('transactions.tags')}</label>

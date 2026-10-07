@@ -60,6 +60,8 @@ const translations = {
       monthlyEvolution: 'Évolution Mensuelle',
       expensesByCategory: 'Dépenses par Catégorie',
       noExpenses: 'Aucune dépense à afficher',
+      budgetWarning: 'Budget bientôt atteint',
+      budgetOverrun: 'Budget dépassé',
     },
     transactions: {
       title: 'Gestion des Transactions',
@@ -87,6 +89,13 @@ const translations = {
       deleteConfirm: 'Supprimer cette transaction ?',
       deleteConfirmDesc: 'Cette action est irréversible.',
       familyMember: 'Membre de la Famille',
+      recurring: 'Transaction récurrente',
+      recurringDesc: 'Répéter automatiquement cette transaction',
+      frequency: {
+        weekly: 'Hebdomadaire',
+        monthly: 'Mensuel',
+        yearly: 'Annuel',
+      },
     },
     vault: {
       title: 'Coffre-Fort Sécurisé',
@@ -329,6 +338,8 @@ const translations = {
       monthlyEvolution: 'Monthly Evolution',
       expensesByCategory: 'Expenses by Category',
       noExpenses: 'No expenses to display',
+      budgetWarning: 'Budget almost reached',
+      budgetOverrun: 'Budget exceeded',
     },
     transactions: {
       title: 'Transaction Management',
@@ -356,6 +367,13 @@ const translations = {
       deleteConfirm: 'Delete this transaction?',
       deleteConfirmDesc: 'This action cannot be undone.',
       familyMember: 'Family Member',
+      recurring: 'Recurring transaction',
+      recurringDesc: 'Automatically repeat this transaction',
+      frequency: {
+        weekly: 'Weekly',
+        monthly: 'Monthly',
+        yearly: 'Yearly',
+      },
     },
     vault: {
       title: 'Secure Vault',

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, Plus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, Plus, AlertTriangle } from 'lucide-react';
 import { StatsCard } from './StatsCard';
 import { TransactionChart } from './TransactionChart';
 import { CategoryChart } from './CategoryChart';
@@ -7,6 +7,7 @@ import { RecentTransactions } from './RecentTransactions';
 import { FinancialGoals } from './FinancialGoals';
 import { useTransactions } from '../../hooks/useTransactions';
 import { useGoals } from '../../hooks/useGoals';
+import { useBudgets } from '../../hooks/useBudgets';
 import { useRegion } from '../../hooks/useRegion';
 import { useLanguage } from '../../i18n';
 import type { PageId } from '../../types';
@@ -20,6 +21,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { formatCurrency } = useRegion();
   const { transactions, loading } = useTransactions();
   const { goals } = useGoals();
+  const { budgets } = useBudgets();
 
   const stats = useMemo(() => {
     const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
@@ -28,6 +30,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0;
     return { totalIncome, totalExpenses, balance, savingsRate };
   }, [transactions]);
+
+  const budgetAlerts = useMemo(() => {
+    const now = new Date();
+    const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const spending: Record<string, number> = {};
+    transactions
+      .filter(tx => tx.type === 'expense' && tx.date.startsWith(monthStr))
+      .forEach(tx => { spending[tx.category] = (spending[tx.category] || 0) + tx.amount; });
+
+    const alerts: { category: string; spent: number; limit: number; progress: number }[] = [];
+    budgets.forEach(b => {
+      const spent = spending[b.category] || 0;
+      const progress = b.limit_amount > 0 ? (spent / b.limit_amount) * 100 : 0;
+      if (progress >= 80) {
+        alerts.push({ category: b.category, spent, limit: b.limit_amount, progress });
+      }
+    });
+    return alerts.sort((a, b) => b.progress - a.progress);
+  }, [transactions, budgets]);
 
   if (loading) {
     return (
@@ -61,6 +82,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           {t('transactions.add')}
         </button>
       </div>
+
+      {/* Budget alerts */}
+      {budgetAlerts.length > 0 && (
+        <div className="space-y-2 animate-slide-up">
+          {budgetAlerts.map(alert => {
+            const isOver = alert.progress > 100;
+            return (
+              <button
+                key={alert.category}
+                onClick={() => onNavigate('budgets')}
+                className={`w-full flex items-center gap-3 p-4 rounded-2xl border transition-all text-left ${
+                  isOver
+                    ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30'
+                    : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30'
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isOver ? 'bg-red-500' : 'bg-amber-500'}`}>
+                  <AlertTriangle className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {isOver
+                      ? `${alert.category} — ${t('dashboard.budgetOverrun')}`
+                      : `${alert.category} — ${t('dashboard.budgetWarning')}`}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {formatCurrency(alert.spent)} / {formatCurrency(alert.limit)} • {Math.round(alert.progress)}%
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

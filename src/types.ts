@@ -9,6 +9,8 @@ export interface Account {
   created_at: string;
 }
 
+export type RecurrenceFrequency = 'weekly' | 'monthly' | 'yearly';
+
 export interface Transaction {
   id: string;
   user_id: string;
@@ -20,6 +22,10 @@ export interface Transaction {
   date: string;
   tags: string[];
   family_member_id: string | null;
+  is_recurring: boolean | null;
+  recurrence_frequency: RecurrenceFrequency | null;
+  recurrence_parent_id: string | null;
+  next_recurrence_date: string | null;
   created_at: string;
 }
 
