@@ -11,6 +11,7 @@ import { VaultList } from './components/Vault/VaultList';
 import { GoalList } from './components/Goals/GoalList';
 import { FamilyList } from './components/Family/FamilyList';
 import { AccountList } from './components/Accounts/AccountList';
+import { ProjectList } from './components/Projects/ProjectList';
 import { Settings } from './components/Settings/Settings';
 import { useAuth } from './hooks/useAuth';
 import { useLanguage } from './i18n';
@@ -73,6 +74,7 @@ function App() {
           {currentPage === 'vault' && <VaultList />}
           {currentPage === 'family' && <FamilyList />}
           {currentPage === 'accounts' && <AccountList />}
+          {currentPage === 'projects' && <ProjectList />}
           {currentPage === 'goals' && <GoalList />}
           {currentPage === 'settings' && <Settings />}
         </main>

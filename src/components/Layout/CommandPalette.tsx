@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, LayoutDashboard, CreditCard, Wallet, Target, Shield, Activity, Settings as SettingsIcon, Plus, ArrowRight, Users, Landmark } from 'lucide-react';
+import { Search, LayoutDashboard, CreditCard, Wallet, Target, Shield, Activity, Settings as SettingsIcon, Plus, ArrowRight, Users, Landmark, FolderKanban } from 'lucide-react';
 import { useLanguage } from '../../i18n';
 import type { PageId } from '../../types';
 
@@ -32,6 +32,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose, o
     { id: 'goto-reports', label: t('reports.title'), desc: t('command.gotoReports'), icon: Activity, action: () => onNavigate('reports') },
     { id: 'goto-family', label: t('family.title'), desc: t('command.gotoFamily'), icon: Users, action: () => onNavigate('family') },
     { id: 'goto-accounts', label: t('accounts.title'), desc: t('command.gotoAccounts'), icon: Landmark, action: () => onNavigate('accounts') },
+    { id: 'goto-projects', label: t('projects.title'), desc: t('command.gotoProjects'), icon: FolderKanban, action: () => onNavigate('projects') },
     { id: 'goto-goals', label: t('common.goals'), desc: t('command.gotoGoals'), icon: Target, action: () => onNavigate('goals') },
     { id: 'goto-vault', label: t('common.vault'), desc: t('command.gotoVault'), icon: Shield, action: () => onNavigate('vault') },
     { id: 'goto-settings', label: t('common.settings'), desc: t('command.gotoSettings'), icon: SettingsIcon, action: () => onNavigate('settings') },

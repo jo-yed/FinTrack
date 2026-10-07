@@ -80,7 +80,36 @@ export interface FamilyMember {
   created_at: string;
 }
 
-export type PageId = 'dashboard' | 'transactions' | 'budgets' | 'reports' | 'family' | 'accounts' | 'vault' | 'goals' | 'settings';
+export type PageId = 'dashboard' | 'transactions' | 'budgets' | 'reports' | 'family' | 'accounts' | 'projects' | 'vault' | 'goals' | 'settings';
+
+export type ProjectScope = 'personal' | 'family';
+export type ProjectStatus = 'active' | 'completed' | 'archived';
+
+export interface Project {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string;
+  scope: ProjectScope;
+  target_amount: number;
+  color: string;
+  icon: string;
+  status: ProjectStatus;
+  start_date: string | null;
+  end_date: string | null;
+  created_at: string;
+}
+
+export interface ProjectTransaction {
+  id: string;
+  project_id: string;
+  user_id: string;
+  type: 'income' | 'expense';
+  label: string;
+  amount: number;
+  date: string;
+  created_at: string;
+}
 
 export type Language = 'fr' | 'en';
 

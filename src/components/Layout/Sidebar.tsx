@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, CreditCard, Wallet, Target, Shield, Activity, Settings as SettingsIcon, LogOut, Menu, X, Users, Landmark } from 'lucide-react';
+import { LayoutDashboard, CreditCard, Wallet, Target, Shield, Activity, Settings as SettingsIcon, LogOut, Menu, X, Users, Landmark, FolderKanban } from 'lucide-react';
 import { useLanguage } from '../../i18n';
 import { useAuth } from '../../hooks/useAuth';
 import type { PageId } from '../../types';
@@ -21,6 +21,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) =
     { icon: Activity, label: t('reports.title'), id: 'reports' },
     { icon: Users, label: t('family.title'), id: 'family' },
     { icon: Landmark, label: t('accounts.title'), id: 'accounts' },
+    { icon: FolderKanban, label: t('projects.title'), id: 'projects' },
     { icon: Target, label: t('common.goals'), id: 'goals' },
     { icon: Shield, label: t('common.vault'), id: 'vault' },
     { icon: SettingsIcon, label: t('common.settings'), id: 'settings' },
