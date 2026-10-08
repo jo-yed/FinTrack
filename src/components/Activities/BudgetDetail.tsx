@@ -432,7 +432,49 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
           {summary.categories.length === 0 && summary.uncategorized.count === 0 ? (
             <div className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">{t('activities.noCategories')}</div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <ul className="sm:hidden divide-y divide-gray-100 dark:divide-gray-800">
+              {summary.categories.map(c => {
+                const cat = catById.get(c.id!)!;
+                return (
+                  <li key={c.id} className="px-4 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                      <span className="font-medium text-gray-900 dark:text-white truncate">{c.name}</span>
+                      <span className="text-xs text-gray-400">{c.count}</span>
+                      {c.status === 'over' && <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />}
+                      <div className="ml-auto flex gap-0.5">
+                        {!readOnly && (
+                          <button onClick={() => setEntryModal({ mode: 'new', type: 'expense', categoryId: c.id })} aria-label={t('activities.addExpense')} className="p-2 text-gray-400 hover:text-red-600 rounded-lg"><Plus className="w-4 h-4" /></button>
+                        )}
+                        {isOwner && <button onClick={() => setCategoryModal({ editing: cat })} aria-label={t('common.edit')} className="p-2 text-gray-400 hover:text-blue-600 rounded-lg"><Edit className="w-4 h-4" /></button>}
+                        {isOwner && <button onClick={() => setDeleteCategoryTarget(cat)} aria-label={t('common.delete')} className="p-2 text-gray-400 hover:text-red-600 rounded-lg"><Trash2 className="w-4 h-4" /></button>}
+                      </div>
+                    </div>
+                    <div className="mt-2.5 grid grid-cols-3 gap-2 text-xs">
+                      <div><div className="text-gray-400">{t('activities.plannedShort')}</div><div className="tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(c.allocated)}</div></div>
+                      <div><div className="text-gray-400">{t('activities.spentShort')}</div><div className="tabular-nums font-medium text-gray-900 dark:text-white">{formatCurrency(c.spent)}</div></div>
+                      <div><div className="text-gray-400">{t('activities.remainingShort')}</div><div className={`tabular-nums font-medium ${c.remaining < 0 ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>{formatCurrency(c.remaining)}</div></div>
+                    </div>
+                    <div className="mt-2.5 flex items-center gap-2">
+                      <div className="flex-1"><ProgressBar progress={c.progress} status={c.status} height="h-2" /></div>
+                      <span className="text-xs text-gray-500 w-9 text-right">{c.allocated > 0 ? `${Math.round(c.progress)}%` : '—'}</span>
+                    </div>
+                  </li>
+                );
+              })}
+              {summary.uncategorized.count > 0 && (
+                <li className="px-4 py-3.5 flex items-center justify-between text-sm">
+                  <span className="text-gray-500 italic">{t('activities.uncategorized')} <span className="text-xs text-gray-400 not-italic">{summary.uncategorized.count}</span></span>
+                  <span className="tabular-nums font-medium text-gray-900 dark:text-white">{formatCurrency(summary.uncategorized.spent)}</span>
+                </li>
+              )}
+              <li className="px-4 py-3 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-between text-sm font-semibold text-gray-900 dark:text-white">
+                <span>{t('activities.total')}</span>
+                <span className="tabular-nums">{formatCurrency(summary.spent)} / {formatCurrency(summary.allocatedTotal)}</span>
+              </li>
+            </ul>
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-xs text-gray-400 uppercase tracking-wide">
@@ -440,8 +482,8 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
                     <th className="text-right font-medium px-3 py-2.5">{t('activities.plannedShort')}</th>
                     <th className="text-right font-medium px-3 py-2.5">{t('activities.spentShort')}</th>
                     <th className="text-right font-medium px-3 py-2.5">{t('activities.remainingShort')}</th>
-                    <th className="hidden sm:table-cell font-medium px-3 py-2.5 w-44 text-left">{t('activities.usage')}</th>
-                    <th className="px-1 sm:px-3 py-2.5 sm:w-28" />
+                    <th className="font-medium px-3 py-2.5 w-44 text-left">{t('activities.usage')}</th>
+                    <th className="px-3 py-2.5 w-28" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -460,13 +502,13 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
                         <td className="px-3 py-3 text-right tabular-nums text-gray-600 dark:text-gray-300">{formatCurrency(c.allocated)}</td>
                         <td className="px-3 py-3 text-right tabular-nums font-medium text-gray-900 dark:text-white">{formatCurrency(c.spent)}</td>
                         <td className={`px-3 py-3 text-right tabular-nums font-medium ${c.remaining < 0 ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>{formatCurrency(c.remaining)}</td>
-                        <td className="hidden sm:table-cell px-3 py-3">
+                        <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
                             <div className="flex-1"><ProgressBar progress={c.progress} status={c.status} height="h-2" /></div>
                             <span className="text-xs text-gray-500 w-9 text-right">{c.allocated > 0 ? `${Math.round(c.progress)}%` : '—'}</span>
                           </div>
                         </td>
-                        <td className="px-1 sm:px-3 py-3">
+                        <td className="px-3 py-3">
                           <div className="flex justify-end gap-0.5 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                             {!readOnly && (
                               <button onClick={() => setEntryModal({ mode: 'new', type: 'expense', categoryId: c.id })} aria-label={t('activities.addExpense')} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Plus className="w-4 h-4" /></button>
@@ -483,7 +525,7 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
                       <td className="px-5 py-3 text-gray-500 italic">{t('activities.uncategorized')} <span className="text-xs text-gray-400 not-italic">{summary.uncategorized.count}</span></td>
                       <td className="px-3 py-3 text-right text-gray-400">—</td>
                       <td className="px-3 py-3 text-right tabular-nums font-medium text-gray-900 dark:text-white">{formatCurrency(summary.uncategorized.spent)}</td>
-                      <td colSpan={3} className="hidden sm:table-cell" /><td colSpan={2} className="sm:hidden" />
+                      <td colSpan={3} />
                     </tr>
                   )}
                 </tbody>
@@ -493,11 +535,12 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
                     <td className="px-3 py-3 text-right tabular-nums">{formatCurrency(summary.allocatedTotal)}</td>
                     <td className="px-3 py-3 text-right tabular-nums">{formatCurrency(summary.spent)}</td>
                     <td className={`px-3 py-3 text-right tabular-nums ${summary.remainingToSpend < 0 ? 'text-red-500' : ''}`}>{formatCurrency(summary.remainingToSpend)}</td>
-                    <td colSpan={2} className="hidden sm:table-cell" /><td className="sm:hidden" />
+                    <td colSpan={2} />
                   </tr>
                 </tfoot>
               </table>
             </div>
+            </>
           )}
 
           {summary.target > 0 && summary.categories.length > 0 && (

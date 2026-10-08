@@ -157,7 +157,7 @@ describe('Budgets Perso & Pro — parcours complet', () => {
     render(<Harness />);
 
     await user.click(await screen.findByText('Budget test'));
-    const row = (await screen.findAllByText('Santé'))[0].closest('tr')!;
+    const row = (await screen.findAllByText('Santé')).map(el => el.closest('tr')).find(Boolean)!;
     await user.click(within(row).getByRole('button', { name: 'Supprimer' }));
     const buttons = screen.getAllByRole('button', { name: 'Supprimer' });
     await user.click(buttons[buttons.length - 1]);
