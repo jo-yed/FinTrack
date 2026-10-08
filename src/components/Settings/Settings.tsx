@@ -12,6 +12,8 @@ import { useAccess } from '../../hooks/useAccess';
 import { supabase } from '../../lib/supabase';
 import { formatPhone } from '../../lib/phone';
 import { TwoFactorSection } from '../Security/TwoFactor';
+import { Avatar } from '../Brand/Avatar';
+import { useProfile } from '../../hooks/useProfile';
 
 const CURRENCIES = [
   { code: 'XAF', label: 'FCFA', flag: '🇨🇲' },
@@ -28,6 +30,7 @@ export const Settings: React.FC = () => {
   const [savedSection, setSavedSection] = useState<string | null>(null);
   const pwa = useInstallPrompt();
   const { isMember } = useAccess();
+  const { profile, displayName, openProfile } = useProfile();
 
   const showSaved = (section: string) => {
     setSavedSection(section);
@@ -53,12 +56,11 @@ export const Settings: React.FC = () => {
       {/* Profile card */}
       <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 animate-slide-up">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-            {userEmail.charAt(0).toUpperCase() || '?'}
-          </div>
+          <Avatar name={displayName} color={profile.color} gender={profile.gender} ageGroup={profile.ageGroup} skin={profile.skin} photo={profile.photo} size={64} />
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white truncate">{userEmail}</h2>
-            <p className="text-sm text-gray-400 dark:text-gray-500">{t('settings.member')}</p>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white truncate">{displayName || userEmail}</h2>
+            <p className="text-sm text-gray-400 dark:text-gray-500 truncate">{displayName ? userEmail : t('settings.member')}</p>
+            <button onClick={openProfile} className="mt-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{t('profile.editMenu')}</button>
           </div>
           <button
             onClick={signOut}

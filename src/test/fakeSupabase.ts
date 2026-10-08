@@ -21,6 +21,7 @@ const DEFAULTS: Record<string, () => Row> = {
   vault_settings: () => ({ iterations: 310000 }),
   family_access: () => ({ owner_id: null, family_member_id: null, status: 'requested', perm_add_expenses: false, perm_view_family: false, approved_at: null, login_email: '', request_code: 'AAAAAAAA', phone: '237600000000' }),
   platform_settings: () => ({ announcement: '', announcement_level: 'info' }),
+  user_profiles: () => ({ photo: null }),
 };
 
 export class FakeDb {

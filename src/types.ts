@@ -77,6 +77,9 @@ export interface FamilyMember {
   role: string;
   avatar_color: string;
   monthly_allowance: number;
+  gender?: 'f' | 'm' | 'x' | null;
+  age_group?: 'child' | 'teen' | 'adult' | 'senior' | null;
+  skin_tone?: number | null;
   created_at: string;
 }
 

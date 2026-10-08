@@ -7,6 +7,10 @@ import { useFamilyAccess } from '../../hooks/useFamilyAccess';
 import { ApproveRequestModal, MemberAccessModal } from './AccessModals';
 import { useRegion } from '../../hooks/useRegion';
 import { useLanguage } from '../../i18n';
+import { Avatar } from '../Brand/Avatar';
+import { AvatarPicker } from '../Profile/AvatarPicker';
+import type { AvatarValue } from '../Profile/AvatarPicker';
+import { AVATAR_COLORS, DEFAULT_SKIN, defaultsForRole } from '../../lib/avatar';
 import type { FamilyAccess, FamilyMember } from '../../types';
 
 const ROLES = [
@@ -17,8 +21,6 @@ const ROLES = [
   { id: 'Enfant', icon: Baby },
   { id: 'Autre', icon: User },
 ];
-
-const AVATAR_COLORS = ['#3B82F6', '#EC4899', '#10B981', '#F59E0B', '#06B6D4', '#8B5CF6', '#F97316', '#84CC16'];
 
 function getRoleIcon(role: string) {
   return ROLES.find(r => r.id === role)?.icon || User;
@@ -191,9 +193,7 @@ export const FamilyList: React.FC = () => {
                 <div className="absolute top-0 right-0 w-24 h-24 rounded-full blur-3xl opacity-10" style={{ backgroundColor: member.avatar_color }} />
                 <div className="relative flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-md text-white text-lg font-bold" style={{ backgroundColor: member.avatar_color }}>
-                      {member.name.charAt(0).toUpperCase()}
-                    </div>
+                    <Avatar name={member.name} color={member.avatar_color} gender={member.gender} ageGroup={member.age_group} skin={member.skin_tone} size={48} />
                     <div>
                       <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{member.name}</h3>
                       <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 mt-0.5">
@@ -286,9 +286,7 @@ export const FamilyList: React.FC = () => {
           <div className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white dark:bg-gray-900 z-50 shadow-2xl overflow-y-auto animate-slide-in">
             <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-md text-white text-lg font-bold" style={{ backgroundColor: selectedMemberData.avatar_color }}>
-                  {selectedMemberData.name.charAt(0).toUpperCase()}
-                </div>
+                <Avatar name={selectedMemberData.name} color={selectedMemberData.avatar_color} gender={selectedMemberData.gender} ageGroup={selectedMemberData.age_group} skin={selectedMemberData.skin_tone} size={48} />
                 <div>
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white">{selectedMemberData.name}</h2>
                   <p className="text-xs text-gray-400 dark:text-gray-500">{selectedMemberData.role}</p>
@@ -412,21 +410,27 @@ export const FamilyList: React.FC = () => {
 interface FamilyModalProps {
   editingMember: FamilyMember | null;
   onClose: () => void;
-  onSave: (data: { name: string; role: string; avatar_color: string; monthly_allowance: number }) => Promise<void>;
+  onSave: (data: { name: string; role: string; avatar_color: string; monthly_allowance: number; gender: AvatarValue['gender']; age_group: AvatarValue['ageGroup']; skin_tone: number }) => Promise<void>;
 }
 
 const FamilyModal: React.FC<FamilyModalProps> = ({ editingMember, onClose, onSave }) => {
   const { t } = useLanguage();
   const [name, setName] = useState(editingMember?.name || '');
   const [role, setRole] = useState(editingMember?.role || 'Père');
-  const [color, setColor] = useState(editingMember?.avatar_color || AVATAR_COLORS[0]);
+  const [look, setLook] = useState<AvatarValue>({
+    gender: editingMember?.gender ?? defaultsForRole(editingMember?.role || 'Père')?.gender ?? null,
+    ageGroup: editingMember?.age_group ?? defaultsForRole(editingMember?.role || 'Père')?.age_group ?? null,
+    skin: editingMember?.skin_tone ?? DEFAULT_SKIN,
+    color: editingMember?.avatar_color || AVATAR_COLORS[0],
+  });
+  const [touched, setTouched] = useState(Boolean(editingMember?.gender || editingMember?.age_group));
   const [allowance, setAllowance] = useState(editingMember?.monthly_allowance.toString() || '0');
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    await onSave({ name, role, avatar_color: color, monthly_allowance: parseFloat(allowance) || 0 });
+    await onSave({ name, role, avatar_color: look.color, monthly_allowance: parseFloat(allowance) || 0, gender: look.gender, age_group: look.ageGroup, skin_tone: look.skin });
     setSaving(false);
   };
 
@@ -439,11 +443,6 @@ const FamilyModal: React.FC<FamilyModalProps> = ({ editingMember, onClose, onSav
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="flex items-center justify-center mb-2">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg text-white text-2xl font-bold" style={{ backgroundColor: color }}>
-              {name.charAt(0).toUpperCase() || '?'}
-            </div>
-          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('family.name')}</label>
             <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm" placeholder={t('family.namePlaceholder')} autoFocus />
@@ -454,7 +453,7 @@ const FamilyModal: React.FC<FamilyModalProps> = ({ editingMember, onClose, onSav
               {ROLES.map(r => {
                 const Icon = r.icon;
                 return (
-                  <button key={r.id} type="button" onClick={() => setRole(r.id)} className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-all ${role === r.id ? 'bg-pink-500 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                  <button key={r.id} type="button" onClick={() => { setRole(r.id); const d = defaultsForRole(r.id); if (d && !touched) setLook(l => ({ ...l, gender: d.gender, ageGroup: d.age_group })); }} className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-all ${role === r.id ? 'bg-pink-500 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
                     <Icon className="w-4 h-4" />
                     {r.id}
                   </button>
@@ -462,14 +461,7 @@ const FamilyModal: React.FC<FamilyModalProps> = ({ editingMember, onClose, onSav
               })}
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('family.color')}</label>
-            <div className="flex gap-2">
-              {AVATAR_COLORS.map(c => (
-                <button key={c} type="button" onClick={() => setColor(c)} className={`w-8 h-8 rounded-lg transition-transform ${color === c ? 'ring-2 ring-offset-2 ring-gray-400 dark:ring-gray-500 dark:ring-offset-gray-900 scale-110' : 'hover:scale-105'}`} style={{ backgroundColor: c }} />
-              ))}
-            </div>
-          </div>
+          <AvatarPicker name={name} value={look} onChange={v => { setTouched(true); setLook(v); }} />
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('family.allowanceLabel')}</label>
             <input type="number" min="0" step="0.01" value={allowance} onChange={(e) => setAllowance(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm" placeholder="0" />

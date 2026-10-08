@@ -2,6 +2,7 @@ import type { Language } from '../types';
 import { extraFr, extraEn } from './extra';
 import { extra2Fr, extra2En } from './extra2';
 import { extra3Fr, extra3En } from './extra3';
+import { extra4Fr, extra4En } from './extra4';
 export type { Language };
 
 export const translations = {
@@ -288,6 +289,7 @@ export const translations = {
     ...extraFr,
     ...extra2Fr,
     ...extra3Fr,
+    ...extra4Fr,
   },
   en: {
     common: {
@@ -573,6 +575,7 @@ export const translations = {
     ...extraEn,
     ...extra2En,
     ...extra3En,
+    ...extra4En,
   },
 };
 

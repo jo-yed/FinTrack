@@ -4,10 +4,12 @@ import { Sidebar } from './components/Layout/Sidebar';
 import { Header } from './components/Layout/Header';
 import { CommandPalette } from './components/Layout/CommandPalette';
 import { ErrorBoundary } from './components/Layout/ErrorBoundary';
-import { Logo } from './components/Brand/Logo';
+import { Splash } from './components/Layout/Splash';
+import { PoweredBy } from './components/Layout/PoweredBy';
+import { ProfilePrompt } from './components/Layout/ProfilePrompt';
+import { ProfileProvider } from './hooks/useProfile';
 import { useAuth } from './hooks/useAuth';
 import { useRoute } from './hooks/useRoute';
-import { useLanguage } from './i18n';
 import { AccessProvider, useAccess } from './hooks/useAccess';
 import { FamilyAccessProvider } from './hooks/useFamilyAccess';
 import { allowedPages as allowedPagesFor, resolvePage } from './lib/navigation';
@@ -20,6 +22,7 @@ import { CategoriesProvider } from './hooks/useCategories';
 import { ActivityBudgetsProvider } from './hooks/useActivityBudgets';
 import { VaultProvider } from './hooks/useVault';
 import { Loader2 } from 'lucide-react';
+import { prefetchPages } from './lib/prefetch';
 
 // Chargement différé : chaque page devient un fichier séparé (démarrage plus rapide).
 const Dashboard = lazy(() => import('./components/Dashboard/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -47,6 +50,10 @@ const Shell: React.FC = () => {
   const profile = { isMember, canViewFamily, isPlatformAdmin };
   const [cmdOpen, setCmdOpen] = useState(false);
   const [quickAddTx, setQuickAddTx] = useState(false);
+  const { session } = useAuth();
+
+  // Une fois l'écran affiché, on charge les autres pages en arrière-plan : elles s'ouvrent ensuite instantanément
+  useEffect(() => prefetchPages(profile), [isMember, canViewFamily, isPlatformAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -78,8 +85,9 @@ const Shell: React.FC = () => {
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
       <Sidebar currentPage={page} onPageChange={p => navigate(p)} />
       <div className="flex-1 flex flex-col min-w-0">
-        <Header onOpenCommand={() => setCmdOpen(true)} />
+        <Header onOpenCommand={() => setCmdOpen(true)} onNavigate={p => navigate(p)} />
         <AnnouncementBanner />
+        <ProfilePrompt userId={session?.user.id ?? ''} />
         <main className="flex-1 p-6 lg:p-8 overflow-x-hidden print:p-0">
           <ErrorBoundary key={page}>
             <Suspense fallback={<PageFallback />}>
@@ -100,6 +108,7 @@ const Shell: React.FC = () => {
             </Suspense>
           </ErrorBoundary>
         </main>
+        <PoweredBy className="px-6 pb-5 pt-1" />
       </div>
 
       <CommandPalette
@@ -118,17 +127,8 @@ const Shell: React.FC = () => {
 
 function App() {
   const { session, loading, recovery, finishRecovery } = useAuth();
-  const { t } = useLanguage();
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 gap-3">
-        <Logo size={72} />
-        <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="text-sm">{t('common.loading')}</span>
-        </div>
-      </div>
-    );
+    return <Splash />;
   }
 
   // Lien « mot de passe oublié » : l'utilisateur choisit d'abord son nouveau mot de passe
@@ -143,26 +143,19 @@ function App() {
   // key = changement d'utilisateur => tous les états de données repartent de zéro.
   return (
     <AccessProvider key={session.user.id}>
-      <AuthedApp />
+      <ProfileProvider>
+        <AuthedApp />
+      </ProfileProvider>
     </AccessProvider>
   );
 }
 
 /** Contenu réservé aux utilisateurs connectés : choisit l'écran selon le profil et l'état de l'accès. */
 const AuthedApp: React.FC = () => {
-  const { t } = useLanguage();
   const { loading, isMember, accessState, mustChangePassword } = useAccess();
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 gap-3">
-        <Logo size={72} />
-        <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="text-sm">{t('common.loading')}</span>
-        </div>
-      </div>
-    );
+    return <Splash />;
   }
 
   // Mot de passe provisoire (réinitialisé par l'administrateur de la famille) : à changer avant tout

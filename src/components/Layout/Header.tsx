@@ -2,20 +2,30 @@ import React from 'react';
 import { Moon, Sun, Globe, Search, Command } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
 import { useLanguage } from '../../i18n';
+import { UserMenu } from './UserMenu';
+import { useProfile } from '../../hooks/useProfile';
+import type { PageId } from '../../types';
 
 interface HeaderProps {
   onOpenCommand: () => void;
+  onNavigate: (page: PageId) => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenCommand }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenCommand, onNavigate }) => {
   const { theme, toggleTheme } = useTheme();
   const { lang, setLang, t } = useLanguage();
+  const { firstName } = useProfile();
 
   return (
     <header className="print:hidden sticky top-0 z-20 bg-white/80 dark:bg-gray-900/80 glass border-b border-gray-200 dark:border-gray-800 px-6 py-4">
       <div className="flex items-center justify-between ml-12 lg:ml-0">
-        <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+        <div className="min-w-0">
+          {firstName && (
+            <p className="hidden sm:block text-xs font-medium text-blue-600 dark:text-blue-400 truncate">
+              {t('profile.hello').replace('{name}', firstName)}
+            </p>
+          )}
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white truncate">
             {new Date().toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
               weekday: 'long',
               day: 'numeric',
@@ -51,6 +61,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCommand }) => {
           >
             {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
           </button>
+
+          <UserMenu onNavigate={onNavigate} />
         </div>
       </div>
     </header>

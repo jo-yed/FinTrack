@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2, MailCheck, Phone, User, Users, Clock, Info } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../i18n';
+import { PoweredBy } from '../Layout/PoweredBy';
 import { Logo } from '../Brand/Logo';
 import { fill } from '../Activities/shared';
 import { ApiError, apiErrorKey, callApi } from '../../lib/api';
@@ -77,6 +78,7 @@ const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <span className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">FinTrack</span>
           </div>
           {children}
+          <PoweredBy className="mt-8" />
         </div>
       </div>
     </div>
