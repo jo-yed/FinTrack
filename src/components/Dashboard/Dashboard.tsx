@@ -5,15 +5,19 @@ import { TransactionChart } from './TransactionChart';
 import { CategoryChart } from './CategoryChart';
 import { RecentTransactions } from './RecentTransactions';
 import { FinancialGoals } from './FinancialGoals';
+import { BudgetOverview } from './BudgetOverview';
 import { useTransactions } from '../../hooks/useTransactions';
 import { useGoals } from '../../hooks/useGoals';
 import { useBudgets } from '../../hooks/useBudgets';
+import { useActivityBudgets } from '../../hooks/useActivityBudgets';
+import { monthKey } from '../../lib/dates';
+import { getBudgetAlertsEnabled } from '../../lib/prefs';
 import { useRegion } from '../../hooks/useRegion';
 import { useLanguage } from '../../i18n';
 import type { PageId } from '../../types';
 
 interface DashboardProps {
-  onNavigate: (page: PageId) => void;
+  onNavigate: (page: PageId, param?: string | null) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
@@ -22,6 +26,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { transactions, loading } = useTransactions();
   const { goals } = useGoals();
   const { budgets } = useBudgets();
+  const { projects, summaries } = useActivityBudgets();
 
   const stats = useMemo(() => {
     const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
@@ -32,23 +37,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   }, [transactions]);
 
   const budgetAlerts = useMemo(() => {
-    const now = new Date();
-    const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const monthStr = monthKey();
     const spending: Record<string, number> = {};
     transactions
       .filter(tx => tx.type === 'expense' && tx.date.startsWith(monthStr))
       .forEach(tx => { spending[tx.category] = (spending[tx.category] || 0) + tx.amount; });
 
-    const alerts: { category: string; spent: number; limit: number; progress: number }[] = [];
+    const alerts: { key: string; label: string; spent: number; limit: number; progress: number; page: PageId; param?: string }[] = [];
     budgets.forEach(b => {
       const spent = spending[b.category] || 0;
       const progress = b.limit_amount > 0 ? (spent / b.limit_amount) * 100 : 0;
       if (progress >= 80) {
-        alerts.push({ category: b.category, spent, limit: b.limit_amount, progress });
+        alerts.push({ key: `m-${b.id}`, label: b.category, spent, limit: b.limit_amount, progress, page: 'budgets' });
       }
     });
-    return alerts.sort((a, b) => b.progress - a.progress);
-  }, [transactions, budgets]);
+
+    // Catégories des budgets Perso & Pro proches de leur plafond ou dépassées
+    projects.filter(p => p.status === 'active' && p.scope !== 'family').forEach(p => {
+      summaries[p.id]?.categories.forEach(c => {
+        if (c.allocated > 0 && c.progress >= 80) {
+          alerts.push({ key: `a-${c.id}`, label: `${p.name} › ${c.name}`, spent: c.spent, limit: c.allocated, progress: c.progress, page: 'activities', param: p.id });
+        }
+      });
+    });
+    return getBudgetAlertsEnabled() ? alerts.sort((a, b) => b.progress - a.progress) : [];
+  }, [transactions, budgets, projects, summaries]);
 
   if (loading) {
     return (
@@ -90,8 +103,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             const isOver = alert.progress > 100;
             return (
               <button
-                key={alert.category}
-                onClick={() => onNavigate('budgets')}
+                key={alert.key}
+                onClick={() => onNavigate(alert.page, alert.param)}
                 className={`w-full flex items-center gap-3 p-4 rounded-2xl border transition-all text-left ${
                   isOver
                     ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30'
@@ -104,8 +117,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">
                     {isOver
-                      ? `${alert.category} — ${t('dashboard.budgetOverrun')}`
-                      : `${alert.category} — ${t('dashboard.budgetWarning')}`}
+                      ? `${alert.label} — ${t('dashboard.budgetOverrun')}`
+                      : `${alert.label} — ${t('dashboard.budgetWarning')}`}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     {formatCurrency(alert.spent)} / {formatCurrency(alert.limit)} • {Math.round(alert.progress)}%
@@ -116,6 +129,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           })}
         </div>
       )}
+
+      {/* Budget Famille & Budgets Perso/Pro, côte à côte */}
+      <BudgetOverview onNavigate={onNavigate} />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

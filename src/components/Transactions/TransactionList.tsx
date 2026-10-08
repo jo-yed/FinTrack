@@ -1,23 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowUpRight, ArrowDownRight, Search, Filter, Plus, Download, Eye, Edit, Trash2, X, AlertCircle, Tag, CreditCard, Repeat } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Search, Plus, Download, Edit, Trash2, X, AlertCircle, CreditCard, Repeat, Scale } from 'lucide-react';
 import { useTransactions } from '../../hooks/useTransactions';
 import { useFamilyMembers } from '../../hooks/useFamilyMembers';
 import { useAccounts } from '../../hooks/useAccounts';
+import { useCategories } from '../../hooks/useCategories';
+import { downloadCsv } from '../../lib/csv';
+import { formatDateShort, todayISO } from '../../lib/dates';
 import { useRegion } from '../../hooks/useRegion';
 import { useLanguage } from '../../i18n';
 import type { Transaction, FamilyMember, Account } from '../../types';
-
-const CATEGORIES = [
-  { name: 'Salaire', type: 'income' },
-  { name: 'Freelance', type: 'income' },
-  { name: 'Alimentation', type: 'expense' },
-  { name: 'Transport', type: 'expense' },
-  { name: 'Santé', type: 'expense' },
-  { name: 'Logement', type: 'expense' },
-  { name: 'Loisirs', type: 'expense' },
-  { name: 'Shopping', type: 'expense' },
-  { name: 'Autre', type: 'expense' },
-];
 
 interface TransactionListProps {
   quickAddSignal?: boolean;
@@ -30,6 +21,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ quickAddSignal
   const { transactions, loading, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
   const { members } = useFamilyMembers();
   const { accounts } = useAccounts();
+  const { namesFor } = useCategories();
 
   const memberMap = useMemo(() => {
     const map: Record<string, FamilyMember> = {};
@@ -57,7 +49,14 @@ export const TransactionList: React.FC<TransactionListProps> = ({ quickAddSignal
       setShowModal(true);
       onQuickAddConsumed?.();
     }
-  }, [quickAddSignal]);
+  }, [quickAddSignal, onQuickAddConsumed]);
+
+  // Filtre : catégories par défaut + personnalisées + celles déjà utilisées dans les données
+  const filterCategories = useMemo(() => {
+    const set = new Set<string>([...namesFor('income'), ...namesFor('expense')]);
+    transactions.forEach(tx => set.add(tx.category));
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [namesFor, transactions]);
 
   const filtered = transactions.filter(tx => {
     const matchesSearch = tx.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -94,18 +93,20 @@ export const TransactionList: React.FC<TransactionListProps> = ({ quickAddSignal
   };
 
   const exportCSV = () => {
-    const headers = ['Date,Type,Category,Description,Amount,Tags\n'];
-    const rows = filtered.map(tx =>
-      `${tx.date},${tx.type},${tx.category},"${tx.description}",${tx.amount},"${tx.tags.join(', ')}"`
-    );
-    const csv = headers.join('') + rows.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'transactions.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    const rows: unknown[][] = [
+      ['Date', 'Type', 'Catégorie', 'Description', 'Montant', 'Compte', 'Membre', 'Étiquettes'],
+      ...filtered.map(tx => [
+        tx.date,
+        tx.type === 'income' ? 'Revenu' : 'Dépense',
+        tx.category,
+        tx.description,
+        tx.type === 'income' ? tx.amount : -tx.amount,
+        tx.account_id ? accountMap[tx.account_id]?.name ?? '' : '',
+        tx.family_member_id ? memberMap[tx.family_member_id]?.name ?? '' : '',
+        tx.tags.join(', '),
+      ]),
+    ];
+    downloadCsv(`transactions-${todayISO()}.csv`, rows);
   };
 
   return (
@@ -135,7 +136,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ quickAddSignal
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-              <span className="text-blue-600 dark:text-blue-400 font-bold text-sm">€</span>
+              <Scale className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <span className="text-sm text-gray-500 dark:text-gray-400">{t('transactions.balance')}</span>
           </div>
@@ -177,8 +178,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({ quickAddSignal
                 className="px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
               >
                 <option value="all">{t('transactions.allCategories')}</option>
-                {CATEGORIES.map(c => (
-                  <option key={c.name} value={c.name}>{c.name}</option>
+                {filterCategories.map(c => (
+                  <option key={c} value={c}>{c}</option>
                 ))}
               </select>
             </div>
@@ -239,7 +240,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ quickAddSignal
                     <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                       <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">{tx.category}</span>
                       <span>•</span>
-                      <span>{new Date(tx.date).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      <span>{formatDateShort(tx.date, lang === 'fr' ? 'fr-FR' : 'en-US')}</span>
                       {tx.is_recurring && (
                         <>
                           <span>•</span>
@@ -368,11 +369,12 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ editingTx, onClose,
   const { t } = useLanguage();
   const { members } = useFamilyMembers();
   const { accounts } = useAccounts();
+  const { namesFor } = useCategories();
   const [type, setType] = useState<'income' | 'expense'>(editingTx?.type || 'expense');
   const [category, setCategory] = useState(editingTx?.category || 'Alimentation');
   const [amount, setAmount] = useState(editingTx?.amount.toString() || '');
   const [description, setDescription] = useState(editingTx?.description || '');
-  const [date, setDate] = useState(editingTx?.date || new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(editingTx?.date || todayISO());
   const [tagsInput, setTagsInput] = useState(editingTx?.tags.join(', ') || '');
   const [familyMemberId, setFamilyMemberId] = useState<string | null>(editingTx?.family_member_id || null);
   const [accountId, setAccountId] = useState<string | null>(editingTx?.account_id || null);
@@ -380,25 +382,40 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ editingTx, onClose,
   const [recurrenceFreq, setRecurrenceFreq] = useState<'weekly' | 'monthly' | 'yearly' | null>(editingTx?.recurrence_frequency || 'monthly');
   const [saving, setSaving] = useState(false);
 
-  const availableCategories = CATEGORIES.filter(c => c.type === type || c.name === 'Autre');
+  const availableCategories = useMemo(() => {
+    const names = namesFor(type);
+    if (!names.includes('Autre')) names.push('Autre');
+    if (editingTx && editingTx.type === type && !names.includes(editingTx.category)) names.unshift(editingTx.category);
+    return names;
+  }, [namesFor, type, editingTx]);
+
+  // Changement de type : la catégorie choisie doit exister dans la nouvelle liste
+  useEffect(() => {
+    if (!availableCategories.includes(category)) {
+      setCategory(type === 'income' ? availableCategories[0] : availableCategories.includes('Alimentation') ? 'Alimentation' : availableCategories[0]);
+    }
+  }, [availableCategories, category, type]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const parsed = parseFloat(amount);
+    if (!(parsed > 0)) return;
     setSaving(true);
     const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
     await onSave({
       type,
       category,
-      amount: parseFloat(amount),
-      description,
+      amount: parsed,
+      description: description.trim(),
       date,
       tags,
       account_id: accountId,
       family_member_id: familyMemberId,
       is_recurring: isRecurring,
       recurrence_frequency: isRecurring ? recurrenceFreq : null,
-      recurrence_parent_id: null,
-      next_recurrence_date: null,
+      // On conserve le lien avec la série d'origine (sinon l'occurrence pourrait être régénérée en double).
+      recurrence_parent_id: editingTx?.recurrence_parent_id ?? null,
+      next_recurrence_date: editingTx?.next_recurrence_date ?? null,
     });
     setSaving(false);
   };
@@ -483,16 +500,16 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ editingTx, onClose,
             <div className="flex flex-wrap gap-2">
               {availableCategories.map(cat => (
                 <button
-                  key={cat.name}
+                  key={cat}
                   type="button"
-                  onClick={() => setCategory(cat.name)}
+                  onClick={() => setCategory(cat)}
                   className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
-                    category === cat.name
+                    category === cat
                       ? 'bg-blue-600 text-white shadow-md'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                   }`}
                 >
-                  {cat.name}
+                  {cat}
                 </button>
               ))}
             </div>

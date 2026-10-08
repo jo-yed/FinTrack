@@ -4,6 +4,7 @@ import { useAccounts } from '../../hooks/useAccounts';
 import { useTransactions } from '../../hooks/useTransactions';
 import { useRegion } from '../../hooks/useRegion';
 import { useLanguage } from '../../i18n';
+import { computeAccountBalances, totalsByCurrency } from '../../lib/accounts';
 import type { Account } from '../../types';
 
 const ACCOUNT_TYPES = ['checking', 'savings', 'mobile_money', 'cash', 'credit', 'investment'];
@@ -33,20 +34,8 @@ export const AccountList: React.FC = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const accountStats = useMemo(() => {
-    const stats: Record<string, { income: number; expenses: number; count: number }> = {};
-    accounts.forEach(a => { stats[a.id] = { income: 0, expenses: 0, count: 0 }; });
-    transactions.forEach(tx => {
-      if (tx.account_id && stats[tx.account_id]) {
-        if (tx.type === 'income') stats[tx.account_id].income += tx.amount;
-        else stats[tx.account_id].expenses += tx.amount;
-        stats[tx.account_id].count++;
-      }
-    });
-    return stats;
-  }, [accounts, transactions]);
-
-  const totalBalance = accounts.reduce((sum, a) => sum + a.balance, 0);
+  const balances = useMemo(() => computeAccountBalances(accounts, transactions), [accounts, transactions]);
+  const totals = useMemo(() => totalsByCurrency(accounts, balances), [accounts, balances]);
 
   const handleAdd = () => {
     setEditingAccount(null);
@@ -90,9 +79,19 @@ export const AccountList: React.FC = () => {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-white/80">{t('accounts.totalBalance')}</p>
-            <p className="text-3xl font-bold mt-1">{formatCurrency(totalBalance)}</p>
+            {totals.length === 0 ? (
+              <p className="text-3xl font-bold mt-1">{formatCurrency(0)}</p>
+            ) : (
+              <div className="mt-1 space-y-0.5">
+                {totals.map(tt => (
+                  <p key={tt.currency} className={totals.length > 1 ? 'text-2xl font-bold' : 'text-3xl font-bold'}>
+                    {formatCurrency(tt.total, tt.currency)}
+                  </p>
+                ))}
+              </div>
+            )}
             <p className="text-xs text-white/70 mt-2">
-              {accounts.length} {t('accounts.accounts')}
+              {accounts.length} {t('accounts.accounts')}{totals.length > 1 && ` · ${t('accountsExtra.totalNote')}`}
             </p>
           </div>
           <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
@@ -125,7 +124,7 @@ export const AccountList: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {accounts.map((account, index) => {
             const Icon = TYPE_ICONS[account.type] || CreditCard;
-            const stats = accountStats[account.id] || { income: 0, expenses: 0, count: 0 };
+            const stats = balances[account.id] || { opening: account.balance, income: 0, expenses: 0, count: 0, current: account.balance };
             const netFlow = stats.income - stats.expenses;
 
             return (
@@ -147,7 +146,7 @@ export const AccountList: React.FC = () => {
                       <p className="text-xs text-gray-400 dark:text-gray-500">{t(`accounts.types.${account.type}`)}</p>
                     </div>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => handleEdit(account)}
                       className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
@@ -163,18 +162,21 @@ export const AccountList: React.FC = () => {
                   </div>
                 </div>
 
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-                  {formatCurrency(account.balance)}
+                <p className={`text-2xl font-bold mb-0.5 ${stats.current < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                  {formatCurrency(stats.current, account.currency)}
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
+                  {t('accountsExtra.openingBalance')} : {formatCurrency(stats.opening, account.currency)}
                 </p>
 
                 <div className="flex items-center gap-4 text-xs">
                   <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                     <TrendingUp className="w-3.5 h-3.5" />
-                    {formatCurrency(stats.income)}
+                    {formatCurrency(stats.income, account.currency)}
                   </span>
                   <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
                     <TrendingDown className="w-3.5 h-3.5" />
-                    {formatCurrency(stats.expenses)}
+                    {formatCurrency(stats.expenses, account.currency)}
                   </span>
                   <span className="text-gray-400 dark:text-gray-500 ml-auto">
                     {stats.count} {t('accounts.transactions')}
@@ -183,7 +185,7 @@ export const AccountList: React.FC = () => {
 
                 {netFlow !== 0 && (
                   <div className={`mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 text-xs font-medium ${netFlow > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {netFlow > 0 ? '+' : ''}{formatCurrency(netFlow)}
+                    {netFlow > 0 ? '+' : ''}{formatCurrency(netFlow, account.currency)}
                   </div>
                 )}
               </div>
@@ -318,11 +320,11 @@ const AccountModal: React.FC<AccountModalProps> = ({ editingAccount, onClose, on
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('accounts.balance')}</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('accountsExtra.openingBalance')}</label>
               <input
                 type="number"
                 required
-                step="0.01"
+                step="any"
                 value={balance}
                 onChange={(e) => setBalance(e.target.value)}
                 className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
@@ -342,6 +344,8 @@ const AccountModal: React.FC<AccountModalProps> = ({ editingAccount, onClose, on
               </select>
             </div>
           </div>
+
+          <p className="text-xs text-gray-400 -mt-2">{t('accountsExtra.balanceHint')}</p>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('accounts.color')}</label>

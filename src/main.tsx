@@ -6,15 +6,21 @@ import { AuthProvider } from './hooks/useAuth';
 import { ThemeProvider } from './hooks/useTheme';
 import { RegionProvider } from './hooks/useRegion';
 import { LanguageProvider } from './i18n';
+import { ConfigError } from './components/Layout/ConfigError';
+import { isSupabaseConfigured } from './lib/supabase';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider>
       <RegionProvider>
         <LanguageProvider>
-          <AuthProvider>
-            <App />
-          </AuthProvider>
+          {isSupabaseConfigured ? (
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          ) : (
+            <ConfigError />
+          )}
         </LanguageProvider>
       </RegionProvider>
     </ThemeProvider>

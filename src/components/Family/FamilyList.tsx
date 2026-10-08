@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Users, Plus, Edit, Trash2, X, AlertCircle, User, Wallet, TrendingDown, TrendingUp, Crown, Heart, GraduationCap, Baby } from 'lucide-react';
+import { Users, Briefcase, Plus, Edit, Trash2, X, AlertCircle, User, Wallet, TrendingDown, TrendingUp, Crown, Heart, GraduationCap, Baby } from 'lucide-react';
 import { useFamilyMembers } from '../../hooks/useFamilyMembers';
 import { useTransactions } from '../../hooks/useTransactions';
 import { useRegion } from '../../hooks/useRegion';
@@ -90,6 +90,16 @@ export const FamilyList: React.FC = () => {
           {t('family.addMember')}
         </button>
       </div>
+
+      <a
+        href="#/activities"
+        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/10 border border-violet-100 dark:border-violet-900/30 hover:bg-violet-100/60 dark:hover:bg-violet-900/20 transition-colors animate-fade-in"
+      >
+        <Briefcase className="w-4 h-4 text-violet-500 flex-shrink-0" />
+        <span className="text-xs sm:text-sm text-violet-700 dark:text-violet-300">
+          {t('activities.familyNote')} <strong>{t('activities.title')}</strong>.
+        </span>
+      </a>
 
       {/* Overview card */}
       {members.length > 0 && (

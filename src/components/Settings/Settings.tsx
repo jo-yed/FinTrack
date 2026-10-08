@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { User, Globe, Moon, Sun, DollarSign, Bell, Shield, LogOut, Mail, Check, ChevronRight } from 'lucide-react';
+import { User, Globe, Moon, Sun, DollarSign, Bell, Shield, LogOut, Mail, Check, ChevronRight, Tags, Plus, X } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
 import { useLanguage } from '../../i18n';
 import { useRegion } from '../../hooks/useRegion';
 import { useAuth } from '../../hooks/useAuth';
+import { DEFAULT_CATEGORIES, useCategories } from '../../hooks/useCategories';
+import { CATEGORY_COLORS } from '../../lib/budgets';
+import { getBudgetAlertsEnabled, setBudgetAlertsEnabled } from '../../lib/prefs';
 
 const CURRENCIES = [
   { code: 'XAF', label: 'FCFA', flag: '🇨🇲' },
@@ -16,7 +19,7 @@ export const Settings: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { region, setCurrency } = useRegion();
   const { session, signOut } = useAuth();
-  const [notifEnabled, setNotifEnabled] = useState(true);
+  const [notifEnabled, setNotifEnabled] = useState(getBudgetAlertsEnabled);
   const [savedSection, setSavedSection] = useState<string | null>(null);
 
   const showSaved = (section: string) => {
@@ -119,11 +122,14 @@ export const Settings: React.FC = () => {
         </SettingsRow>
       </SettingsSection>
 
+      {/* Catégories personnalisées */}
+      <CategoriesSection />
+
       {/* Notifications */}
       <SettingsSection icon={<Bell className="w-5 h-5 text-amber-500" />} title={t('settings.notifications')} saved={savedSection === 'notifications'}>
         <SettingsRow label={t('settings.budgetAlerts')} desc={t('settings.budgetAlertsDesc')}>
           <button
-            onClick={() => { setNotifEnabled(!notifEnabled); showSaved('notifications'); }}
+            onClick={() => { const next = !notifEnabled; setNotifEnabled(next); setBudgetAlertsEnabled(next); showSaved('notifications'); }}
             className={`relative w-12 h-6 rounded-full transition-colors ${notifEnabled ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700'}`}
           >
             <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${notifEnabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
@@ -193,6 +199,83 @@ const SettingsRow: React.FC<SettingsRowProps> = ({ label, desc, children }) => {
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">{desc}</p>
       </div>
       <div className="flex-shrink-0">{children}</div>
+    </div>
+  );
+};
+
+const CategoriesSection: React.FC = () => {
+  const { t } = useLanguage();
+  const { custom, addCategory, deleteCategory } = useCategories();
+  const [name, setName] = useState('');
+  const [type, setType] = useState<'income' | 'expense'>('expense');
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = name.trim();
+    if (!clean) return;
+    const exists = [...DEFAULT_CATEGORIES, ...custom].some(c => c.type === type && c.name.toLowerCase() === clean.toLowerCase());
+    if (exists) return setError(t('categoriesMgmt.duplicate'));
+    try {
+      await addCategory(clean, type, CATEGORY_COLORS[custom.length % CATEGORY_COLORS.length]);
+      setName('');
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 animate-slide-up">
+      <div className="flex items-center gap-3 mb-1">
+        <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+          <Tags className="w-5 h-5 text-violet-500" />
+        </div>
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white">{t('categoriesMgmt.title')}</h3>
+      </div>
+      <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">{t('categoriesMgmt.desc')}</p>
+
+      <form onSubmit={submit} className="flex flex-col sm:flex-row gap-2 mb-3">
+        <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
+          {(['expense', 'income'] as const).map(tp => (
+            <button key={tp} type="button" onClick={() => setType(tp)}
+              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${type === tp ? (tp === 'expense' ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white') : 'text-gray-500 dark:text-gray-400'}`}>
+              {t(`categoriesMgmt.${tp}`)}
+            </button>
+          ))}
+        </div>
+        <input
+          value={name}
+          onChange={e => { setName(e.target.value); setError(null); }}
+          placeholder={t('categoriesMgmt.name')}
+          className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+        />
+        <button type="submit" className="flex items-center justify-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium rounded-xl transition-colors">
+          <Plus className="w-4 h-4" /> {t('categoriesMgmt.add')}
+        </button>
+      </form>
+      {error && <p className="text-sm text-red-500 mb-2">{error}</p>}
+
+      {custom.length === 0 ? (
+        <p className="text-sm text-gray-400">{t('categoriesMgmt.none')}</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {custom.map(c => (
+            <span key={c.id} className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 text-sm rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
+              {c.name}
+              <span className="text-[10px] uppercase text-gray-400">{t(`categoriesMgmt.${c.type}`)}</span>
+              <button
+                onClick={() => deleteCategory(c.id).catch(err => setError(err instanceof Error ? err.message : String(err)))}
+                aria-label={t('common.delete')}
+                className="p-0.5 text-gray-400 hover:text-red-500 rounded-full"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { BarChart, Bar, LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngl
 import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Calendar, DollarSign, Activity, PieChart as PieIcon } from 'lucide-react';
 import { useTransactions } from '../../hooks/useTransactions';
 import { useRegion } from '../../hooks/useRegion';
+import { parseLocalDate, toLocalISO } from '../../lib/dates';
 import { useLanguage } from '../../i18n';
 
 type Period = 'month' | 'quarter' | 'year';
@@ -17,7 +18,7 @@ export const Reports: React.FC = () => {
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(tx => {
-      const txDate = new Date(tx.date);
+      const txDate = parseLocalDate(tx.date);
       if (period === 'month') {
         return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
       }
@@ -45,21 +46,21 @@ export const Reports: React.FC = () => {
       const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
       const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
       prevTransactions = transactions.filter(tx => {
-        const d = new Date(tx.date);
+        const d = parseLocalDate(tx.date);
         return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
       });
     } else if (period === 'quarter') {
       const qStart = Math.floor(now.getMonth() / 3) * 3;
       const prevQStart = qStart - 3;
       prevTransactions = transactions.filter(tx => {
-        const d = new Date(tx.date);
+        const d = parseLocalDate(tx.date);
         const m = d.getMonth();
         return prevQStart >= 0
           ? m >= prevQStart && m <= prevQStart + 2 && d.getFullYear() === now.getFullYear()
           : m >= 9 && d.getFullYear() === now.getFullYear() - 1;
       });
     } else {
-      prevTransactions = transactions.filter(tx => new Date(tx.date).getFullYear() === now.getFullYear() - 1);
+      prevTransactions = transactions.filter(tx => parseLocalDate(tx.date).getFullYear() === now.getFullYear() - 1);
     }
     const income = prevTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     const expenses = prevTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
@@ -108,7 +109,7 @@ export const Reports: React.FC = () => {
     for (let i = days - 1; i >= 0; i -= step) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      const dateKey = d.toISOString().split('T')[0];
+      const dateKey = toLocalISO(d);
       const dayTx = transactions.filter(tx => tx.date === dateKey);
       const flow = dayTx.reduce((s, t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
       cumulative += flow;
@@ -311,7 +312,7 @@ export const Reports: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900 dark:text-white">{tx.description}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">{tx.category} • {new Date(tx.date).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short' })}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">{tx.category} • {parseLocalDate(tx.date).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short' })}</p>
                     </div>
                   </div>
                   <p className={`text-sm font-semibold ${tx.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>

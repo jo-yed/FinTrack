@@ -65,8 +65,8 @@ export const AuthForm: React.FC = () => {
             </p>
             <div className="flex gap-8 pt-4">
               <div>
-                <div className="text-3xl font-bold">100%</div>
-                <div className="text-blue-200 text-sm">Chiffré</div>
+                <div className="text-3xl font-bold">AES-256</div>
+                <div className="text-blue-200 text-sm">Coffre chiffré</div>
               </div>
               <div>
                 <div className="text-3xl font-bold">2 langues</div>
@@ -79,7 +79,7 @@ export const AuthForm: React.FC = () => {
             </div>
           </div>
 
-          <p className="text-blue-200 text-sm">© 2024 FinTrack. Tous droits réservés.</p>
+          <p className="text-blue-200 text-sm">© {new Date().getFullYear()} FinTrack. Tous droits réservés.</p>
         </div>
       </div>
 

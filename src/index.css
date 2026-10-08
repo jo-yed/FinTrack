@@ -55,3 +55,14 @@ body {
   background-size: 1000px 100%;
   animation: shimmer 2s linear infinite;
 }
+
+/* Impression / export PDF des rapports de budget */
+@media print {
+  html, body, #root, #root > div {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  @page {
+    margin: 12mm;
+  }
+}

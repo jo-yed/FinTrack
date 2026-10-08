@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { monthKey } from '../lib/dates';
 import type { Budget } from '../types';
 
-function currentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-}
+const currentMonth = () => monthKey();
 
 export function useBudgets() {
   const [budgets, setBudgets] = useState<Budget[]>([]);

@@ -12,7 +12,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCommand }) => {
   const { lang, setLang, t } = useLanguage();
 
   return (
-    <header className="sticky top-0 z-20 bg-white/80 dark:bg-gray-900/80 glass border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+    <header className="print:hidden sticky top-0 z-20 bg-white/80 dark:bg-gray-900/80 glass border-b border-gray-200 dark:border-gray-800 px-6 py-4">
       <div className="flex items-center justify-between ml-12 lg:ml-0">
         <div>
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">

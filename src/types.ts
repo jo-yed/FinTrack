@@ -80,11 +80,28 @@ export interface FamilyMember {
   created_at: string;
 }
 
-export type PageId = 'dashboard' | 'transactions' | 'budgets' | 'reports' | 'family' | 'accounts' | 'projects' | 'vault' | 'goals' | 'settings';
+export type PageId =
+  | 'dashboard'
+  | 'transactions'
+  | 'budgets'
+  | 'reports'
+  | 'family'
+  | 'accounts'
+  | 'activities'
+  | 'vault'
+  | 'goals'
+  | 'settings';
 
-export type ProjectScope = 'personal' | 'family';
+export const PAGE_IDS: PageId[] = [
+  'dashboard', 'transactions', 'budgets', 'reports', 'family',
+  'accounts', 'activities', 'vault', 'goals', 'settings',
+];
+
+/** personal/professional = budgets d'activités ; family = anciens projets familiaux (lecture/gestion conservées). */
+export type ProjectScope = 'personal' | 'professional' | 'family';
 export type ProjectStatus = 'active' | 'completed' | 'archived';
 
+/** Budget d'activité (enveloppe) : fonds reçus, catégories créées par l'utilisateur, dépenses justifiées. */
 export interface Project {
   id: string;
   user_id: string;
@@ -97,17 +114,48 @@ export interface Project {
   status: ProjectStatus;
   start_date: string | null;
   end_date: string | null;
+  code: string;
+  responsible: string;
   created_at: string;
 }
 
+/** Ligne (catégorie / activité) d'un budget, avec son montant prévu. */
+export interface ProjectCategory {
+  id: string;
+  project_id: string;
+  user_id: string;
+  name: string;
+  allocated_amount: number;
+  color: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export type PaymentMethod = '' | 'cash' | 'transfer' | 'cheque' | 'mobile_money' | 'card';
+
+/** Écriture du journal d'un budget : income = fonds reçus (décaissement vers le budget), expense = dépense. */
 export interface ProjectTransaction {
   id: string;
   project_id: string;
   user_id: string;
+  category_id: string | null;
   type: 'income' | 'expense';
   label: string;
   amount: number;
   date: string;
+  payee: string;
+  reference: string;
+  payment_method: PaymentMethod;
+  note: string;
+  source_transaction_id: string | null;
+  created_at: string;
+}
+
+export interface VaultSettings {
+  user_id: string;
+  salt: string;
+  verifier: string;
+  iterations: number;
   created_at: string;
 }
 

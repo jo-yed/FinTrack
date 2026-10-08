@@ -3,10 +3,10 @@ import { Wallet, Plus, Edit, Trash2, X, AlertCircle, TrendingDown, Check } from 
 import { useBudgets } from '../../hooks/useBudgets';
 import { useTransactions } from '../../hooks/useTransactions';
 import { useRegion } from '../../hooks/useRegion';
+import { useCategories } from '../../hooks/useCategories';
+import { monthKey } from '../../lib/dates';
 import { useLanguage } from '../../i18n';
 import type { Budget } from '../../types';
-
-const EXPENSE_CATEGORIES = ['Alimentation', 'Transport', 'Santé', 'Logement', 'Loisirs', 'Shopping', 'Autre'];
 
 export const BudgetList: React.FC = () => {
   const { t, lang } = useLanguage();
@@ -19,10 +19,7 @@ export const BudgetList: React.FC = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const currentMonthStr = useMemo(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }, []);
+  const currentMonthStr = useMemo(() => monthKey(), []);
 
   const spendingByCategory = useMemo(() => {
     const spending: Record<string, number> = {};
@@ -250,14 +247,18 @@ interface BudgetModalProps {
 
 const BudgetModal: React.FC<BudgetModalProps> = ({ editingBudget, onClose, onSave }) => {
   const { t } = useLanguage();
-  const [category, setCategory] = useState(editingBudget?.category || 'Alimentation');
+  const { namesFor } = useCategories();
+  const categoryNames = namesFor('expense').filter(n => n !== 'Budgets activités');
+  const [category, setCategory] = useState(editingBudget?.category || categoryNames[0] || 'Alimentation');
   const [limitAmount, setLimitAmount] = useState(editingBudget?.limit_amount.toString() || '');
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const limit = parseFloat(limitAmount);
+    if (Number.isNaN(limit) || limit < 0) return;
     setSaving(true);
-    await onSave({ category, limit_amount: parseFloat(limitAmount) });
+    await onSave({ category, limit_amount: limit });
     setSaving(false);
   };
 
@@ -277,7 +278,7 @@ const BudgetModal: React.FC<BudgetModalProps> = ({ editingBudget, onClose, onSav
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('budgets.category')}</label>
             <div className="flex flex-wrap gap-2">
-              {EXPENSE_CATEGORIES.map(cat => (
+              {(categoryNames.includes(category) ? categoryNames : [category, ...categoryNames]).map(cat => (
                 <button
                   key={cat}
                   type="button"

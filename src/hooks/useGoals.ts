@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Goal } from '../types';
 
@@ -57,9 +57,14 @@ export function useGoals() {
   };
 
   const contribute = async (id: string, amount: number) => {
-    const goal = goals.find(g => g.id === id);
-    if (!goal) return;
-    const newAmount = goal.current_amount + amount;
+    // Lecture de la valeur fraîche en base (évite d'écraser une contribution faite depuis un autre onglet).
+    const { data: fresh, error: readErr } = await supabase
+      .from('goals')
+      .select('current_amount')
+      .eq('id', id)
+      .single();
+    if (readErr) throw readErr;
+    const newAmount = Math.round((Number(fresh.current_amount) + amount) * 100) / 100;
     return updateGoal(id, { current_amount: newAmount });
   };
 

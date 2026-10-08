@@ -14,7 +14,7 @@ const regions: Record<string, Region> = {
 interface RegionContextType {
   region: Region;
   setCurrency: (currency: string) => void;
-  formatCurrency: (amount: number) => string;
+  formatCurrency: (amount: number, currency?: string) => string;
 }
 
 const RegionContext = createContext<RegionContextType | undefined>(undefined);
@@ -31,13 +31,19 @@ export const RegionProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     localStorage.setItem('currency', curr);
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat(region.locale, {
-      style: 'currency',
-      currency: region.currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
+  const formatCurrency = (amount: number, currencyOverride?: string) => {
+    const code = currencyOverride || region.currency;
+    const locale = (regions[code] || region).locale;
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: code,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: code === 'XAF' ? 0 : 2,
+      }).format(amount);
+    } catch {
+      return `${amount.toLocaleString(locale)} ${code}`;
+    }
   };
 
   return (

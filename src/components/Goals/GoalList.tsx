@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Target, Plus, Edit, Trash2, X, TrendingUp, Check, Calendar } from 'lucide-react';
 import { useGoals } from '../../hooks/useGoals';
 import { useRegion } from '../../hooks/useRegion';
+import { parseLocalDate } from '../../lib/dates';
 import { useLanguage } from '../../i18n';
 import type { Goal } from '../../types';
 
@@ -77,7 +78,7 @@ export const GoalList: React.FC = () => {
             const progress = Math.min((goal.current_amount / goal.target_amount) * 100, 100);
             const isCompleted = progress >= 100;
             const daysLeft = goal.deadline
-              ? Math.ceil((new Date(goal.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+              ? Math.ceil((parseLocalDate(goal.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
               : null;
 
             return (
@@ -151,7 +152,7 @@ export const GoalList: React.FC = () => {
                       )}
                     </div>
                   ) : (
-                    <span className="text-xs text-gray-400 dark:text-gray-600">Sans échéance</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-600">{t('common2.noDeadline')}</span>
                   )}
 
                   {!isCompleted && (
@@ -339,7 +340,7 @@ const GoalModal: React.FC<GoalModalProps> = ({ editingGoal, onClose, onSave }) =
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Couleur</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('common2.color')}</label>
             <div className="flex gap-2">
               {GOAL_COLORS.map(c => (
                 <button
@@ -384,8 +385,10 @@ const ContributeModal: React.FC<ContributeModalProps> = ({ goal, onClose, onCont
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const value = parseFloat(amount);
+    if (!(value > 0)) return;
     setSaving(true);
-    await onContribute(parseFloat(amount));
+    await onContribute(value);
     setSaving(false);
   };
 
