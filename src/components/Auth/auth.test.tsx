@@ -225,4 +225,22 @@ describe('Connexion et inscription par téléphone', () => {
     expect(await screen.findByText('Au moins 8 caractères.', { selector: '[role="alert"] span' })).toBeTruthy();
     expect(invoke).not.toHaveBeenCalled();
   });
+
+  it("indique clairement qu'un compte est suspendu (téléphone et e-mail)", async () => {
+    auth.signInWithPassword.mockResolvedValue({ data: {}, error: new Error('User is banned') });
+    const user = userEvent.setup();
+    const { container } = wrap(<AuthForm />);
+
+    await user.click(screen.getByRole('button', { name: /Par téléphone/ }));
+    await user.type(screen.getByLabelText('Numéro de téléphone'), '677112233');
+    await user.type(screen.getByLabelText('Mot de Passe'), 'MotDePasse-OK-1');
+    await user.click(container.querySelector('button[type="submit"]') as HTMLElement);
+    expect(await screen.findByText(/Ce compte est suspendu/)).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: /Par e-mail/ }));
+    await user.type(screen.getByLabelText('Adresse Email'), 'moi@test.com');
+    await user.type(screen.getByLabelText('Mot de Passe'), 'MotDePasse-OK-1');
+    await user.click(container.querySelector('button[type="submit"]') as HTMLElement);
+    expect(await screen.findByText(/Ce compte est suspendu/)).toBeTruthy();
+  });
 });

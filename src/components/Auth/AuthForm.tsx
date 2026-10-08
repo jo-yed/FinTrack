@@ -110,7 +110,11 @@ export const AuthForm: React.FC = () => {
   const go = (next: Mode) => { setMode(next); setError(null); setInfo(null); setPhoneHelp(false); };
   const pick = (next: Method) => { setMethod(next); setError(null); setInfo(null); setPhoneHelp(false); };
 
-  const friendly = (message: string) => (/email not confirmed/i.test(message) ? t('authx.notConfirmed') : message);
+  const friendly = (message: string) => {
+    if (/email not confirmed/i.test(message)) return t('authx.notConfirmed');
+    if (/banned|suspended/i.test(message)) return t('authp.banned');
+    return message;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,7 +141,10 @@ export const AuthForm: React.FC = () => {
         if (err) throw err;
       } catch (err) {
         if (err instanceof ApiError) setError(t(apiErrorKey(err)));
-        else setError(/invalid login|credentials/i.test(err instanceof Error ? err.message : '') ? t('authp.wrongCredentials') : t('auth.error'));
+        else {
+          const message = err instanceof Error ? err.message : '';
+          setError(/banned|suspended/i.test(message) ? t('authp.banned') : /invalid login|credentials/i.test(message) ? t('authp.wrongCredentials') : t('auth.error'));
+        }
       } finally {
         setLoading(false);
       }
