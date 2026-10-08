@@ -4,8 +4,10 @@ import { handle } from './handler.ts';
 import type { Deps } from './handler.ts';
 
 const url = Deno.env.get('SUPABASE_URL')!;
-const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+// Nouvelles clés (sb_secret_… / sb_publishable_…) en priorité ; anciennes clés JWT seulement en secours.
+// Les secrets de fonction ne peuvent pas commencer par SUPABASE_, d'où le préfixe FINTRACK_.
+const serviceKey = (Deno.env.get('FINTRACK_SECRET_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))!;
+const anonKey = (Deno.env.get('FINTRACK_PUBLISHABLE_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY'))!;
 const pepper = Deno.env.get('FUNCTION_PEPPER') ?? 'fintrack';
 
 // Origines autorisées : la production, plus d'éventuelles origines supplémentaires (variable ALLOWED_ORIGINS, séparées par des virgules)
