@@ -4,6 +4,7 @@ import { Sidebar } from './components/Layout/Sidebar';
 import { Header } from './components/Layout/Header';
 import { CommandPalette } from './components/Layout/CommandPalette';
 import { ErrorBoundary } from './components/Layout/ErrorBoundary';
+import { LogoShowcase } from './components/Brand/LogoShowcase';
 import { useAuth } from './hooks/useAuth';
 import { useRoute } from './hooks/useRoute';
 import { useLanguage } from './i18n';
@@ -104,6 +105,16 @@ const Shell: React.FC = () => {
 function App() {
   const { session, loading } = useAuth();
   const { t } = useLanguage();
+  const [showLogos, setShowLogos] = useState(true);
+
+  const handlePickLogo = (id: number) => {
+    console.log('User picked logo:', id);
+    setShowLogos(false);
+  };
+
+  if (showLogos) {
+    return <LogoShowcase onPick={handlePickLogo} onClose={() => setShowLogos(false)} />;
+  }
 
   if (loading) {
     return (
