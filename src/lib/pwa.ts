@@ -71,9 +71,12 @@ export function initPwa(): void {
       });
     }).catch(() => undefined);
 
+    // Rechargement uniquement pour une MISE À JOUR (un service worker contrôlait déjà la page) :
+    // à la toute première installation, recharger ferait perdre la saisie en cours.
+    const hadController = Boolean(navigator.serviceWorker.controller);
     let reloading = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (reloading) return;
+      if (!hadController || reloading) return;
       reloading = true;
       window.location.reload();
     });
