@@ -274,7 +274,7 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
           <button onClick={() => onNavigate('activities')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white mb-3 transition-colors">
             <ArrowLeft className="w-4 h-4" /> {t('activities.backToList')}
           </button>
-          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+          <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4">
             <div className="flex items-start gap-4 min-w-0">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0" style={{ backgroundColor: project.color }}>
                 <Icon className="w-7 h-7 text-white" />
@@ -440,8 +440,8 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
                     <th className="text-right font-medium px-3 py-2.5">{t('activities.plannedShort')}</th>
                     <th className="text-right font-medium px-3 py-2.5">{t('activities.spentShort')}</th>
                     <th className="text-right font-medium px-3 py-2.5">{t('activities.remainingShort')}</th>
-                    <th className="font-medium px-3 py-2.5 w-44 text-left">{t('activities.usage')}</th>
-                    <th className="px-3 py-2.5 w-28" />
+                    <th className="hidden sm:table-cell font-medium px-3 py-2.5 w-44 text-left">{t('activities.usage')}</th>
+                    <th className="px-1 sm:px-3 py-2.5 sm:w-28" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -460,13 +460,13 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
                         <td className="px-3 py-3 text-right tabular-nums text-gray-600 dark:text-gray-300">{formatCurrency(c.allocated)}</td>
                         <td className="px-3 py-3 text-right tabular-nums font-medium text-gray-900 dark:text-white">{formatCurrency(c.spent)}</td>
                         <td className={`px-3 py-3 text-right tabular-nums font-medium ${c.remaining < 0 ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>{formatCurrency(c.remaining)}</td>
-                        <td className="px-3 py-3">
+                        <td className="hidden sm:table-cell px-3 py-3">
                           <div className="flex items-center gap-2">
                             <div className="flex-1"><ProgressBar progress={c.progress} status={c.status} height="h-2" /></div>
                             <span className="text-xs text-gray-500 w-9 text-right">{c.allocated > 0 ? `${Math.round(c.progress)}%` : '—'}</span>
                           </div>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-1 sm:px-3 py-3">
                           <div className="flex justify-end gap-0.5 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                             {!readOnly && (
                               <button onClick={() => setEntryModal({ mode: 'new', type: 'expense', categoryId: c.id })} aria-label={t('activities.addExpense')} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Plus className="w-4 h-4" /></button>
@@ -483,7 +483,7 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
                       <td className="px-5 py-3 text-gray-500 italic">{t('activities.uncategorized')} <span className="text-xs text-gray-400 not-italic">{summary.uncategorized.count}</span></td>
                       <td className="px-3 py-3 text-right text-gray-400">—</td>
                       <td className="px-3 py-3 text-right tabular-nums font-medium text-gray-900 dark:text-white">{formatCurrency(summary.uncategorized.spent)}</td>
-                      <td colSpan={3} />
+                      <td colSpan={3} className="hidden sm:table-cell" /><td colSpan={2} className="sm:hidden" />
                     </tr>
                   )}
                 </tbody>
@@ -493,7 +493,7 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
                     <td className="px-3 py-3 text-right tabular-nums">{formatCurrency(summary.allocatedTotal)}</td>
                     <td className="px-3 py-3 text-right tabular-nums">{formatCurrency(summary.spent)}</td>
                     <td className={`px-3 py-3 text-right tabular-nums ${summary.remainingToSpend < 0 ? 'text-red-500' : ''}`}>{formatCurrency(summary.remainingToSpend)}</td>
-                    <td colSpan={2} />
+                    <td colSpan={2} className="hidden sm:table-cell" /><td className="sm:hidden" />
                   </tr>
                 </tfoot>
               </table>
