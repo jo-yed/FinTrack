@@ -13,6 +13,7 @@ import { FamilyList } from './components/Family/FamilyList';
 import { AccountList } from './components/Accounts/AccountList';
 import { ProjectList } from './components/Projects/ProjectList';
 import { Settings } from './components/Settings/Settings';
+import { LogoShowcase } from './components/Brand/LogoShowcase';
 import { useAuth } from './hooks/useAuth';
 import { useLanguage } from './i18n';
 import { Wallet, Loader2 } from 'lucide-react';
@@ -24,6 +25,12 @@ function App() {
   const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
   const [cmdOpen, setCmdOpen] = useState(false);
   const [quickAddTx, setQuickAddTx] = useState(false);
+  const [showLogos, setShowLogos] = useState(true);
+
+  const handlePickLogo = (id: number) => {
+    console.log('User picked logo:', id);
+    setShowLogos(false);
+  };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -42,6 +49,10 @@ function App() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [cmdOpen, session]);
+
+  if (showLogos) {
+    return <LogoShowcase onPick={handlePickLogo} onClose={() => setShowLogos(false)} />;
+  }
 
   if (loading) {
     return (
