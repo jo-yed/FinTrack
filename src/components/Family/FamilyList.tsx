@@ -30,9 +30,11 @@ export const FamilyList: React.FC = () => {
   const { members, loading, addMember, updateMember, deleteMember } = useFamilyMembers();
   const { transactions } = useTransactions();
   const { isMember } = useAccess();
-  const { byMemberId } = useFamilyAccess();
+  const { byMemberId, accesses } = useFamilyAccess();
   const [showApprove, setShowApprove] = useState(false);
-  const [managing, setManaging] = useState<{ access: FamilyAccess; name: string } | null>(null);
+  const [managing, setManaging] = useState<{ accessId: string; name: string } | null>(null);
+  // On relit toujours l'accès à jour (statut, droits) au lieu de garder une copie périmée
+  const managedAccess: FamilyAccess | null = managing ? accesses.find(a => a.id === managing.accessId) ?? null : null;
 
   const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
@@ -249,7 +251,7 @@ export const FamilyList: React.FC = () => {
                     <div className="relative mt-3" onClick={e => e.stopPropagation()}>
                       {live ? (
                         <button
-                          onClick={() => setManaging({ access: acc, name: member.name })}
+                          onClick={() => setManaging({ accessId: acc.id, name: member.name })}
                           className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-colors ${acc.status === 'active' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 hover:bg-amber-100'}`}
                           aria-label={`${t('familyAccess.manage')} ${member.name}`}
                         >
@@ -360,7 +362,7 @@ export const FamilyList: React.FC = () => {
       )}
 
       {showApprove && <ApproveRequestModal onClose={() => setShowApprove(false)} />}
-      {managing && <MemberAccessModal access={managing.access} memberName={managing.name} onClose={() => setManaging(null)} />}
+      {managing && managedAccess && <MemberAccessModal key={managedAccess.id} access={managedAccess} memberName={managing.name} onClose={() => setManaging(null)} />}
 
       {/* Modal */}
       {showModal && (

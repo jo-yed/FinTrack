@@ -185,6 +185,29 @@ describe('Administrateur de famille : gérer un accès existant', () => {
     await waitFor(() => expect(call('update_family_access')[0].args).toMatchObject({ p_status: 'suspended' }));
   });
 
+  it("après avoir suspendu un accès, on peut le réactiver aussitôt (le bouton Enregistrer reste actif)", async () => {
+    seedAccess();
+    db.rpcHandlers.update_family_access = ({ p_status, p_add_expenses, p_view_family }) => {
+      Object.assign(db.tables.family_access[0], { status: p_status, perm_add_expenses: p_add_expenses, perm_view_family: p_view_family });
+      return { data: {}, error: null };
+    };
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(await screen.findByRole('button', { name: 'Gérer Junior' }));
+    await user.click(screen.getByRole('button', { name: /Suspendre/ }));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(call('update_family_access')).toHaveLength(1));
+    expect(await screen.findByText('Modifications enregistrées.')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: /Réactiver/ }));
+    const save = screen.getByRole('button', { name: 'Enregistrer' }) as HTMLButtonElement;
+    expect(save.disabled).toBe(false);
+    await user.click(save);
+    await waitFor(() => expect(call('update_family_access')).toHaveLength(2));
+    expect(call('update_family_access')[1].args).toMatchObject({ p_status: 'active' });
+  });
+
   it('génère un mot de passe provisoire affiché une seule fois, avec message WhatsApp prêt', async () => {
     seedAccess();
     invoke.mockResolvedValue({ data: { tempPassword: 'Zk7mPq9RtX27' }, error: null });

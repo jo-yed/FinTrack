@@ -216,6 +216,8 @@ export const MemberAccessModal: React.FC<{ access: FamilyAccess; memberName: str
   const { update, revoke, resetPassword } = useFamilyAccess();
   const [perms, setPerms] = useState<Permissions>({ addExpenses: access.perm_add_expenses, viewFamily: access.perm_view_family });
   const [status, setStatus] = useState<'active' | 'suspended'>(access.status === 'suspended' ? 'suspended' : 'active');
+  // État enregistré : mis à jour après chaque sauvegarde, pour que « Enregistrer » ne se grise pas à tort
+  const [baseline, setBaseline] = useState({ add: access.perm_add_expenses, family: access.perm_view_family, status: access.status });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -224,7 +226,7 @@ export const MemberAccessModal: React.FC<{ access: FamilyAccess; memberName: str
   const [confirmReset, setConfirmReset] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const dirty = perms.addExpenses !== access.perm_add_expenses || perms.viewFamily !== access.perm_view_family || status !== access.status;
+  const dirty = perms.addExpenses !== baseline.add || perms.viewFamily !== baseline.family || status !== baseline.status;
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -238,7 +240,11 @@ export const MemberAccessModal: React.FC<{ access: FamilyAccess; memberName: str
     setBusy(false);
   };
 
-  const save = () => run(async () => { await update(access.id, perms, status); setSaved(true); });
+  const save = () => run(async () => {
+    await update(access.id, perms, status);
+    setBaseline({ add: perms.addExpenses, family: perms.viewFamily, status });
+    setSaved(true);
+  });
   const doRevoke = () => run(async () => { await revoke(access.id); onClose(); });
   const doReset = () => run(async () => {
     try {
