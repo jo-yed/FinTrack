@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Plus, Edit, Trash2, ChevronRight, Briefcase, AlertTriangle, Users, Wallet, ArrowDownToLine, PiggyBank } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronRight, Briefcase, AlertTriangle, Users, Wallet, ArrowDownToLine, PiggyBank, BarChart3, Clock, Share2 } from 'lucide-react';
 import { useActivityBudgets } from '../../hooks/useActivityBudgets';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useRegion } from '../../hooks/useRegion';
@@ -11,7 +11,7 @@ import {
   ConfirmDialog, ErrorToast, ProgressBar, SCOPE_STYLE, STATUS_PILL, STATUS_TEXT, getBudgetIcon,
 } from './shared';
 
-type Tab = 'all' | ProjectScope;
+type Tab = 'all' | 'shared' | ProjectScope;
 
 interface Props {
   onNavigate: (page: PageId, param?: string | null) => void;
@@ -21,7 +21,7 @@ export const BudgetListView: React.FC<Props> = ({ onNavigate }) => {
   const { t } = useLanguage();
   const { formatCurrency } = useRegion();
   const { accounts } = useAccounts();
-  const { projects, summaries, loading, addProject, updateProject, deleteProject } = useActivityBudgets();
+  const { userId, projects, summaries, loading, roleOf, addProject, updateProject, deleteProject } = useActivityBudgets();
 
   const [tab, setTab] = useState<Tab>('all');
   const [showClosed, setShowClosed] = useState(false);
@@ -30,23 +30,27 @@ export const BudgetListView: React.FC<Props> = ({ onNavigate }) => {
   const [deleting, setDeleting] = useState<Project | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const familyCount = projects.filter(p => p.scope === 'family').length;
+  const owned = useMemo(() => projects.filter(p => p.user_id === userId), [projects, userId]);
+  const shared = useMemo(() => projects.filter(p => p.user_id !== userId), [projects, userId]);
+  const familyCount = owned.filter(p => p.scope === 'family').length;
   const tabs: { id: Tab; label: string; count: number }[] = [
-    { id: 'all', label: t('activities.tabAll'), count: projects.filter(p => p.scope !== 'family').length },
-    { id: 'personal', label: t('activities.personal'), count: projects.filter(p => p.scope === 'personal').length },
-    { id: 'professional', label: t('activities.professional'), count: projects.filter(p => p.scope === 'professional').length },
+    { id: 'all', label: t('activities.tabAll'), count: owned.filter(p => p.scope !== 'family').length },
+    { id: 'personal', label: t('activities.personal'), count: owned.filter(p => p.scope === 'personal').length },
+    { id: 'professional', label: t('activities.professional'), count: owned.filter(p => p.scope === 'professional').length },
     ...(familyCount > 0 ? [{ id: 'family' as Tab, label: t('activities.family'), count: familyCount }] : []),
+    ...(shared.length > 0 ? [{ id: 'shared' as Tab, label: t('share.sharedTab'), count: shared.length }] : []),
   ];
 
   const visible = useMemo(() => {
-    return projects.filter(p => {
-      if (tab === 'all' ? p.scope === 'family' : p.scope !== tab) return false;
+    const base = tab === 'shared' ? shared : owned;
+    return base.filter(p => {
+      if (tab === 'all' ? p.scope === 'family' : tab !== 'shared' && p.scope !== tab) return false;
       if (!showClosed && p.status !== 'active') return false;
       return true;
     });
-  }, [projects, tab, showClosed]);
+  }, [owned, shared, tab, showClosed]);
 
-  const closedCount = projects.filter(p => p.status !== 'active').length;
+  const closedCount = (tab === 'shared' ? shared : owned).filter(p => p.status !== 'active').length;
 
   const totals = useMemo(() => {
     const active = visible.filter(p => p.status === 'active');
@@ -86,13 +90,22 @@ export const BudgetListView: React.FC<Props> = ({ onNavigate }) => {
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">{t('activities.subtitle')}</p>
         </div>
-        <button
-          onClick={openCreate}
-          className={`flex items-center justify-center gap-2 px-4 py-2.5 text-white text-sm font-medium rounded-xl shadow-lg transition-all ${SCOPE_STYLE[defaultScope].gradient} ${SCOPE_STYLE[defaultScope].shadow}`}
-        >
-          <Plus className="w-4 h-4" />
-          {t('activities.add')}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => onNavigate('activities', 'reports')}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-xl transition-colors"
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span className="hidden sm:inline">{t('periodReports.open')}</span>
+          </button>
+          <button
+            onClick={openCreate}
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 text-white text-sm font-medium rounded-xl shadow-lg transition-all ${SCOPE_STYLE[defaultScope].gradient} ${SCOPE_STYLE[defaultScope].shadow}`}
+          >
+            <Plus className="w-4 h-4" />
+            {t('activities.add')}
+          </button>
+        </div>
       </div>
 
       {/* Distinction avec le budget famille */}
@@ -109,7 +122,7 @@ export const BudgetListView: React.FC<Props> = ({ onNavigate }) => {
       <div className="flex flex-wrap gap-2 animate-slide-up">
         {tabs.map(tb => {
           const active = tab === tb.id;
-          const st = tb.id === 'all' ? null : SCOPE_STYLE[tb.id];
+          const st = tb.id === 'all' ? null : tb.id === 'shared' ? SCOPE_STYLE.professional : SCOPE_STYLE[tb.id];
           return (
             <button
               key={tb.id}
@@ -175,6 +188,7 @@ export const BudgetListView: React.FC<Props> = ({ onNavigate }) => {
             const Icon = getBudgetIcon(project.icon);
             const st = SCOPE_STYLE[project.scope];
             const alerts = s ? s.categories.filter(c => c.status === 'over' || c.status === 'warning') : [];
+            const isOwner = roleOf(project.id) === 'owner';
             return (
               <div
                 key={project.id}
@@ -200,14 +214,16 @@ export const BudgetListView: React.FC<Props> = ({ onNavigate }) => {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-1 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                    <button onClick={() => { setEditing(project); setShowModal(true); }} aria-label={t('common.edit')} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => setDeleting(project)} aria-label={t('common.delete')} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  {isOwner && (
+                    <div className="flex gap-1 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => { setEditing(project); setShowModal(true); }} aria-label={t('common.edit')} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setDeleting(project)} aria-label={t('common.delete')} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {s && (
@@ -232,6 +248,21 @@ export const BudgetListView: React.FC<Props> = ({ onNavigate }) => {
                       <span>{t('activities.cash')} : <strong className={s.cashBalance < 0 ? 'text-red-500' : 'text-gray-700 dark:text-gray-200'}>{formatCurrency(s.cashBalance)}</strong></span>
                       <span>{s.categories.length} {t('activities.categoriesCount')}</span>
                     </div>
+
+                    {(!isOwner || s.pendingCount > 0) && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {!isOwner && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300">
+                            <Share2 className="w-3 h-3" /> {t('share.sharedBy')} {project.owner_email || '—'}
+                          </span>
+                        )}
+                        {s.pendingCount > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300">
+                            <Clock className="w-3 h-3" /> {s.pendingCount} {t('approval.pending').toLowerCase()}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {alerts.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">

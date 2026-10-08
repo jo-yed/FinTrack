@@ -8,8 +8,15 @@ import { FakeDb } from '../../test/fakeSupabase';
 const db = new FakeDb();
 
 vi.mock('../../lib/supabase', () => ({
-  supabase: { from: (table: string) => db.from(table) },
+  supabase: { from: (table: string) => db.from(table), get storage() { return db.storage; } },
   isSupabaseConfigured: true,
+}));
+
+vi.mock('../../hooks/useAuth', () => ({
+  useAuth: () => ({
+    session: { user: { id: 'u1', email: 'owner@test.com' } },
+    loading: false, recovery: false, finishRecovery: () => undefined, signOut: async () => undefined,
+  }),
 }));
 
 import { LanguageProvider } from '../../i18n';

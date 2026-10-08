@@ -1,8 +1,10 @@
 import type { Language } from '../types';
 import { extraFr, extraEn } from './extra';
+import { extra2Fr, extra2En } from './extra2';
+import { extra3Fr, extra3En } from './extra3';
 export type { Language };
 
-const translations = {
+export const translations = {
   fr: {
     common: {
       dashboard: 'Tableau de Bord',
@@ -217,6 +219,8 @@ const translations = {
       gotoFamily: 'Aller à la famille',
       gotoAccounts: 'Aller aux comptes',
       gotoActivities: 'Aller aux budgets perso & pro',
+      gotoMyspace: 'Aller à mon espace',
+      gotoAdmin: "Ouvrir l'administration",
       gotoSettings: 'Aller aux paramètres',
       quickAddTx: 'Ajouter une transaction rapidement',
       noResults: 'Aucun résultat',
@@ -282,6 +286,8 @@ const translations = {
       none: 'Aucun',
     },
     ...extraFr,
+    ...extra2Fr,
+    ...extra3Fr,
   },
   en: {
     common: {
@@ -497,6 +503,8 @@ const translations = {
       gotoFamily: 'Go to family',
       gotoAccounts: 'Go to accounts',
       gotoActivities: 'Go to personal & work budgets',
+      gotoMyspace: 'Go to my space',
+      gotoAdmin: 'Open administration',
       gotoSettings: 'Go to settings',
       quickAddTx: 'Quickly add a transaction',
       noResults: 'No results',
@@ -563,6 +571,8 @@ const translations = {
     },
   
     ...extraEn,
+    ...extra2En,
+    ...extra3En,
   },
 };
 

@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { supabase } from '../lib/supabase';
 import { addPeriod, todayISO } from '../lib/dates';
 import { planRecurrences } from '../lib/recurrence';
+import { useAccessOptional } from './useAccess';
 import type { NewTransaction } from '../lib/recurrence';
 import type { Transaction } from '../types';
 
@@ -22,6 +23,9 @@ const TransactionsContext = createContext<TransactionsContextType | undefined>(u
  * et unique point d'exécution de la génération des transactions récurrentes.
  */
 export const TransactionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const access = useAccessOptional();
+  const isMember = Boolean(access?.isMember);
+  const ownerId = access?.access?.owner_id ?? null;
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +50,7 @@ export const TransactionsProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const generateRecurring = useCallback(async () => {
     const today = todayISO();
+    if (isMember) return; // un membre de famille ne gère pas les récurrences de l'administrateur
     if (generating.current || lastGeneratedOn.current === today) return;
     generating.current = true;
     try {
@@ -87,7 +92,7 @@ export const TransactionsProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } finally {
       generating.current = false;
     }
-  }, [refetch]);
+  }, [refetch, isMember]);
 
   useEffect(() => {
     refetch().then(generateRecurring);
@@ -103,7 +108,16 @@ export const TransactionsProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [generateRecurring]);
 
   const addTransaction = useCallback(async (tx: NewTransaction) => {
-    const payload: NewTransaction = { ...tx };
+    const payload: NewTransaction & { user_id?: string } = { ...tx };
+    if (isMember) {
+      if (!ownerId) throw new Error('forbidden');
+      payload.user_id = ownerId;
+      payload.type = 'expense';
+      payload.account_id = null;
+      payload.is_recurring = false;
+      payload.recurrence_frequency = null;
+      payload.recurrence_parent_id = null;
+    }
     if (payload.is_recurring && payload.recurrence_frequency && payload.date) {
       payload.next_recurrence_date = addPeriod(payload.date, payload.recurrence_frequency);
     } else {
@@ -115,7 +129,7 @@ export const TransactionsProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (err) throw err;
     setTransactions(prev => [data as Transaction, ...prev]);
     return data as Transaction;
-  }, []);
+  }, [isMember, ownerId]);
 
   const updateTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
     const current = transactions.find(t => t.id === id);

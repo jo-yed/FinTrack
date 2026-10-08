@@ -5,6 +5,9 @@ export const extraFr = {
     finances: 'Finances',
     budgets: 'Budgets',
     tools: 'Outils',
+    myspace: 'Mon espace',
+    admin: 'Administration',
+    sharedBudgets: 'Budgets partagés',
   },
   activities: {
     title: 'Budgets Perso & Pro',
@@ -238,6 +241,9 @@ export const extraEn: typeof extraFr = {
     finances: 'Finances',
     budgets: 'Budgets',
     tools: 'Tools',
+    myspace: 'My space',
+    admin: 'Administration',
+    sharedBudgets: 'Shared budgets',
   },
   activities: {
     title: 'Personal & Work Budgets',

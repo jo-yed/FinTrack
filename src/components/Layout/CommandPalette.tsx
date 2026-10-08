@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, LayoutDashboard, CreditCard, Wallet, Target, Shield, Activity, Settings as SettingsIcon, Plus, ArrowRight, Users, Landmark, Briefcase } from 'lucide-react';
+import { Search, LayoutDashboard, CreditCard, Wallet, Target, Shield, Activity, Settings as SettingsIcon, Plus, ArrowRight, Users, Landmark, Briefcase, Home, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '../../i18n';
 import type { PageId } from '../../types';
 
@@ -8,6 +8,8 @@ interface CommandPaletteProps {
   onClose: () => void;
   onNavigate: (page: PageId) => void;
   onQuickAdd: () => void;
+  /** Pages permises pour ce profil. */
+  allowed: PageId[];
 }
 
 interface CommandItem {
@@ -19,13 +21,15 @@ interface CommandItem {
   shortcut?: string;
 }
 
-export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose, onNavigate, onQuickAdd }) => {
+export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose, onNavigate, onQuickAdd, allowed }) => {
   const { t } = useLanguage();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const commands: CommandItem[] = [
+    { id: 'goto-myspace', label: t('nav.myspace'), desc: t('command.gotoMyspace'), icon: Home, action: () => onNavigate('myspace') },
+    { id: 'goto-admin', label: t('nav.admin'), desc: t('command.gotoAdmin'), icon: ShieldCheck, action: () => onNavigate('admin') },
     { id: 'goto-dashboard', label: t('common.dashboard'), desc: t('command.gotoDashboard'), icon: LayoutDashboard, action: () => onNavigate('dashboard') },
     { id: 'goto-transactions', label: t('common.transactions'), desc: t('command.gotoTransactions'), icon: CreditCard, action: () => onNavigate('transactions') },
     { id: 'goto-budgets', label: t('budgets.title'), desc: t('command.gotoBudgets'), icon: Wallet, action: () => onNavigate('budgets') },
@@ -36,10 +40,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose, o
     { id: 'goto-goals', label: t('common.goals'), desc: t('command.gotoGoals'), icon: Target, action: () => onNavigate('goals') },
     { id: 'goto-vault', label: t('common.vault'), desc: t('command.gotoVault'), icon: Shield, action: () => onNavigate('vault') },
     { id: 'goto-settings', label: t('common.settings'), desc: t('command.gotoSettings'), icon: SettingsIcon, action: () => onNavigate('settings') },
-    { id: 'quick-add-tx', label: t('transactions.add'), desc: t('command.quickAddTx'), icon: Plus, action: onQuickAdd, shortcut: 'N' },
+    ...(allowed.includes('transactions') ? [{ id: 'quick-add-tx', label: t('transactions.add'), desc: t('command.quickAddTx'), icon: Plus, action: onQuickAdd, shortcut: 'N' }] : []),
   ];
 
-  const filtered = commands.filter(c =>
+  // Les commandes de navigation (« goto-… ») ne sont proposées que pour les pages permises
+  const visible = commands.filter(c => !c.id.startsWith('goto-') || allowed.includes(c.id.slice(5) as PageId));
+  const filtered = visible.filter(c =>
     c.label.toLowerCase().includes(query.toLowerCase()) ||
     c.desc.toLowerCase().includes(query.toLowerCase())
   );

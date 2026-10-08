@@ -11,6 +11,7 @@ let n = 0;
 const entry = (type: 'income' | 'expense', amount: number, date: string, category_id: string | null = null): ProjectTransaction => ({
   id: `e${n++}`, project_id: 'p', user_id: 'u', category_id, type, label: 'x', amount, date,
   payee: '', reference: '', payment_method: '', note: '', source_transaction_id: null,
+  status: 'approved', approved_by: null, approved_at: null, rejection_reason: '', created_by_email: '',
   created_at: `2026-01-01T00:00:${String(n).padStart(2, '0')}Z`,
 });
 
@@ -49,6 +50,36 @@ describe('summarizeBudget', () => {
   it("évite les erreurs d'arrondi flottant", () => {
     const s = summarizeBudget({ target_amount: 1 }, [], [entry('expense', 0.1, '2026-01-01'), entry('expense', 0.2, '2026-01-01')]);
     expect(s.spent).toBe(0.3);
+  });
+});
+
+describe('validation des dépenses', () => {
+  const pendingEntry = (amount: number, status: 'pending' | 'rejected') => ({ ...entry('expense', amount, '2026-01-05'), status });
+
+  it('ne compte que les écritures approuvées, et signale celles en attente', () => {
+    const s = summarizeBudget({ target_amount: 1000 }, [], [
+      entry('income', 800, '2026-01-01'),
+      entry('expense', 100, '2026-01-02'),
+      pendingEntry(300, 'pending'),
+      pendingEntry(50, 'rejected'),
+    ]);
+    expect(s.spent).toBe(100);
+    expect(s.cashBalance).toBe(700);
+    expect(s.pendingCount).toBe(1);
+    expect(s.pendingAmount).toBe(300);
+    expect(s.rejectedCount).toBe(1);
+  });
+
+  it("le solde du journal ignore les écritures non approuvées, et la courbe aussi", () => {
+    const entries = [entry('income', 100, '2026-01-01'), pendingEntry(40, 'pending'), entry('expense', 10, '2026-01-06')];
+    expect(buildJournal(entries).map(l => l.balance)).toEqual([100, 100, 90]);
+    expect(buildTimeline(entries).map(p => p.spent)).toEqual([0, 10]);
+  });
+
+  it('un statut absent (anciennes données) est traité comme approuvé', () => {
+    const legacy = { ...entry('expense', 70, '2026-01-02') } as any;
+    delete legacy.status;
+    expect(summarizeBudget({ target_amount: 100 }, [], [legacy]).spent).toBe(70);
   });
 });
 

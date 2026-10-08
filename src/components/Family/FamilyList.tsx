@@ -1,10 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { Users, Briefcase, Plus, Edit, Trash2, X, AlertCircle, User, Wallet, TrendingDown, TrendingUp, Crown, Heart, GraduationCap, Baby } from 'lucide-react';
+import { Users, Briefcase, Plus, KeyRound, ShieldCheck, ShieldOff, Smartphone, Edit, Trash2, X, AlertCircle, User, Wallet, TrendingDown, TrendingUp, Crown, Heart, GraduationCap, Baby } from 'lucide-react';
 import { useFamilyMembers } from '../../hooks/useFamilyMembers';
 import { useTransactions } from '../../hooks/useTransactions';
+import { useAccess } from '../../hooks/useAccess';
+import { useFamilyAccess } from '../../hooks/useFamilyAccess';
+import { ApproveRequestModal, MemberAccessModal } from './AccessModals';
 import { useRegion } from '../../hooks/useRegion';
 import { useLanguage } from '../../i18n';
-import type { FamilyMember } from '../../types';
+import type { FamilyAccess, FamilyMember } from '../../types';
 
 const ROLES = [
   { id: 'Père', icon: Crown },
@@ -26,6 +29,10 @@ export const FamilyList: React.FC = () => {
   const { formatCurrency } = useRegion();
   const { members, loading, addMember, updateMember, deleteMember } = useFamilyMembers();
   const { transactions } = useTransactions();
+  const { isMember } = useAccess();
+  const { byMemberId } = useFamilyAccess();
+  const [showApprove, setShowApprove] = useState(false);
+  const [managing, setManaging] = useState<{ access: FamilyAccess; name: string } | null>(null);
 
   const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
@@ -82,16 +89,27 @@ export const FamilyList: React.FC = () => {
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">{t('family.subtitle')}</p>
         </div>
-        <button
-          onClick={() => { setEditingMember(null); setShowModal(true); }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-sm font-medium rounded-xl shadow-lg shadow-pink-500/20 transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          {t('family.addMember')}
-        </button>
+        {!isMember && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowApprove(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-violet-50 hover:bg-violet-100 dark:bg-violet-900/20 dark:hover:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-sm font-medium rounded-xl transition-colors"
+            >
+              <KeyRound className="w-4 h-4" />
+              <span className="hidden sm:inline">{t('familyAccess.validateRequest')}</span>
+            </button>
+            <button
+              onClick={() => { setEditingMember(null); setShowModal(true); }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-sm font-medium rounded-xl shadow-lg shadow-pink-500/20 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              {t('family.addMember')}
+            </button>
+          </div>
+        )}
       </div>
 
-      <a
+      {!isMember && <a
         href="#/activities"
         className="flex items-center gap-3 px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/10 border border-violet-100 dark:border-violet-900/30 hover:bg-violet-100/60 dark:hover:bg-violet-900/20 transition-colors animate-fade-in"
       >
@@ -99,7 +117,7 @@ export const FamilyList: React.FC = () => {
         <span className="text-xs sm:text-sm text-violet-700 dark:text-violet-300">
           {t('activities.familyNote')} <strong>{t('activities.title')}</strong>.
         </span>
-      </a>
+      </a>}
 
       {/* Overview card */}
       {members.length > 0 && (
@@ -140,13 +158,15 @@ export const FamilyList: React.FC = () => {
           </div>
           <h3 className="text-base font-medium text-gray-900 dark:text-white mb-1">{t('family.empty')}</h3>
           <p className="text-sm text-gray-400 dark:text-gray-600 mb-4">{t('family.emptyDesc')}</p>
-          <button
-            onClick={() => { setEditingMember(null); setShowModal(true); }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-pink-500 hover:bg-pink-600 text-white text-sm font-medium rounded-xl transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            {t('family.addFirst')}
-          </button>
+          {!isMember && (
+            <button
+              onClick={() => { setEditingMember(null); setShowModal(true); }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-pink-500 hover:bg-pink-600 text-white text-sm font-medium rounded-xl transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              {t('family.addFirst')}
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -180,14 +200,14 @@ export const FamilyList: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {!isMember && <div className="flex gap-1 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                     <button onClick={(e) => { e.stopPropagation(); setEditingMember(member); setShowModal(true); }} className="p-1.5 text-gray-400 hover:text-pink-600 hover:bg-pink-50 dark:hover:bg-pink-900/20 rounded-lg transition-colors">
                       <Edit className="w-4 h-4" />
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); setDeleteId(member.id); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
-                  </div>
+                  </div>}
                 </div>
 
                 <div className="relative grid grid-cols-3 gap-2 mb-3">
@@ -221,6 +241,31 @@ export const FamilyList: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {!isMember && (() => {
+                  const acc = byMemberId[member.id];
+                  const live = acc && (acc.status === 'active' || acc.status === 'suspended');
+                  return (
+                    <div className="relative mt-3" onClick={e => e.stopPropagation()}>
+                      {live ? (
+                        <button
+                          onClick={() => setManaging({ access: acc, name: member.name })}
+                          className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-colors ${acc.status === 'active' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 hover:bg-amber-100'}`}
+                          aria-label={`${t('familyAccess.manage')} ${member.name}`}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            {acc.status === 'active' ? <ShieldCheck className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
+                            {acc.status === 'active' ? t('familyAccess.statusActive') : t('familyAccess.statusSuspended')}
+                            <span className="opacity-70">· {acc.perm_add_expenses ? t('familyAccess.canAdd') : t('familyAccess.viewOnly')}{acc.perm_view_family ? ` · ${t('familyAccess.seesFamily')}` : ''}</span>
+                          </span>
+                          <span>{t('familyAccess.manage')}</span>
+                        </button>
+                      ) : (
+                        <p className="flex items-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-500"><Smartphone className="w-3.5 h-3.5" /> {t('familyAccess.noAccess')}</p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div className="relative mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 text-xs text-gray-400 dark:text-gray-500 flex items-center justify-between">
                   <span>{stats.txCount} {t('family.transactions')}</span>
@@ -313,6 +358,9 @@ export const FamilyList: React.FC = () => {
           </div>
         </>
       )}
+
+      {showApprove && <ApproveRequestModal onClose={() => setShowApprove(false)} />}
+      {managing && <MemberAccessModal access={managing.access} memberName={managing.name} onClose={() => setManaging(null)} />}
 
       {/* Modal */}
       {showModal && (

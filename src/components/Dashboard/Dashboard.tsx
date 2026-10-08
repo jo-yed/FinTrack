@@ -26,7 +26,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { transactions, loading } = useTransactions();
   const { goals } = useGoals();
   const { budgets } = useBudgets();
-  const { projects, summaries } = useActivityBudgets();
+  const { userId, projects: allProjects, summaries } = useActivityBudgets();
+  const projects = useMemo(() => allProjects.filter(p => p.user_id === userId), [allProjects, userId]);
 
   const stats = useMemo(() => {
     const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Globe, Moon, Sun, DollarSign, Bell, Shield, LogOut, Mail, Check, ChevronRight, Tags, Plus, X } from 'lucide-react';
+import { User, Globe, Moon, Sun, DollarSign, Bell, Shield, LogOut, Mail, Check, ChevronRight, Tags, Plus, X, Smartphone, Download, KeyRound, Loader2 } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
 import { useLanguage } from '../../i18n';
 import { useRegion } from '../../hooks/useRegion';
@@ -7,6 +7,11 @@ import { useAuth } from '../../hooks/useAuth';
 import { DEFAULT_CATEGORIES, useCategories } from '../../hooks/useCategories';
 import { CATEGORY_COLORS } from '../../lib/budgets';
 import { getBudgetAlertsEnabled, setBudgetAlertsEnabled } from '../../lib/prefs';
+import { useInstallPrompt } from '../../hooks/useInstallPrompt';
+import { useAccess } from '../../hooks/useAccess';
+import { supabase } from '../../lib/supabase';
+import { formatPhone } from '../../lib/phone';
+import { TwoFactorSection } from '../Security/TwoFactor';
 
 const CURRENCIES = [
   { code: 'XAF', label: 'FCFA', flag: '🇨🇲' },
@@ -21,13 +26,16 @@ export const Settings: React.FC = () => {
   const { session, signOut } = useAuth();
   const [notifEnabled, setNotifEnabled] = useState(getBudgetAlertsEnabled);
   const [savedSection, setSavedSection] = useState<string | null>(null);
+  const pwa = useInstallPrompt();
+  const { isMember } = useAccess();
 
   const showSaved = (section: string) => {
     setSavedSection(section);
     setTimeout(() => setSavedSection(null), 2000);
   };
 
-  const userEmail = session?.user?.email || '';
+  const phoneMeta = String((session?.user?.user_metadata as { phone?: string } | undefined)?.phone ?? '');
+  const userEmail = isMember ? (phoneMeta ? formatPhone(phoneMeta) : '') : session?.user?.email || '';
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -122,8 +130,29 @@ export const Settings: React.FC = () => {
         </SettingsRow>
       </SettingsSection>
 
-      {/* Catégories personnalisées */}
-      <CategoriesSection />
+      {/* Catégories personnalisées (administrateurs de famille uniquement) */}
+      {!isMember && <CategoriesSection />}
+
+      {/* Application mobile */}
+      <SettingsSection icon={<Smartphone className="w-5 h-5 text-blue-500" />} title={t('pwa.title')} saved={null}>
+        <SettingsRow label={t('pwa.title')} desc={pwa.installed ? t('pwa.installed') : pwa.ios ? t('pwa.iosHint') : pwa.canInstall ? t('pwa.desc') : t('pwa.unavailable')}>
+          {pwa.installed ? (
+            <Check className="w-5 h-5 text-emerald-500" />
+          ) : (
+            <button
+              onClick={() => void pwa.install()}
+              disabled={!pwa.canInstall}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl disabled:opacity-40 transition-colors"
+            >
+              <Download className="w-4 h-4" /> {t('pwa.install')}
+            </button>
+          )}
+        </SettingsRow>
+      </SettingsSection>
+
+      {/* Sécurité du compte */}
+      <PasswordSection />
+      <TwoFactorSection />
 
       {/* Notifications */}
       <SettingsSection icon={<Bell className="w-5 h-5 text-amber-500" />} title={t('settings.notifications')} saved={savedSection === 'notifications'}>
@@ -276,6 +305,64 @@ const CategoriesSection: React.FC = () => {
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+const PasswordSection: React.FC = () => {
+  const { t } = useLanguage();
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+    if (password.length < 8) return setMessage({ kind: 'error', text: t('authx.passwordMin') });
+    if (password !== confirm) return setMessage({ kind: 'error', text: t('auth.passwordMismatch') });
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({ password, data: { must_change_password: false } });
+    setBusy(false);
+    if (error) return setMessage({ kind: 'error', text: error.message });
+    setPassword('');
+    setConfirm('');
+    setOpen(false);
+    setMessage({ kind: 'ok', text: t('security.passwordChanged') });
+  };
+
+  const field = 'w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm';
+
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 animate-slide-up">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center"><KeyRound className="w-5 h-5 text-amber-500" /></div>
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white">{t('security.passwordTitle')}</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('security.passwordDesc')}</p>
+          </div>
+        </div>
+        {!open && (
+          <button onClick={() => { setOpen(true); setMessage(null); }} className="px-4 py-2 text-sm font-medium rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">
+            {t('security.change')}
+          </button>
+        )}
+      </div>
+      {open && (
+        <form onSubmit={submit} className="mt-4 space-y-3 max-w-sm">
+          <input type="password" autoComplete="new-password" className={field} placeholder={t('authx.newPassword')} aria-label={t('authx.newPassword')} value={password} onChange={e => setPassword(e.target.value)} />
+          <input type="password" autoComplete="new-password" className={field} placeholder={t('authx.confirmNew')} aria-label={t('authx.confirmNew')} value={confirm} onChange={e => setConfirm(e.target.value)} />
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setOpen(false)} className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">{t('common.cancel')}</button>
+            <button type="submit" disabled={busy || !password} className="px-4 py-2 text-sm font-medium rounded-xl bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 flex items-center gap-2">
+              {busy && <Loader2 className="w-4 h-4 animate-spin" />} {t('authx.update')}
+            </button>
+          </div>
+        </form>
+      )}
+      {message && <p className={`text-sm mt-3 ${message.kind === 'ok' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`} role="status">{message.text}</p>}
     </div>
   );
 };

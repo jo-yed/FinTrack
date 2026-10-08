@@ -1,11 +1,13 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { Logo } from '../Brand/Logo';
 
 /** Affiché quand les variables d'environnement Supabase sont absentes (au lieu d'un écran blanc). */
 export const ConfigError: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-950">
     <div className="max-w-lg w-full bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-amber-200 dark:border-amber-800 p-8">
       <div className="flex items-center gap-3 mb-4">
+        <Logo size={44} />
         <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
           <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
         </div>

@@ -8,8 +8,10 @@ import type { BudgetSummary } from '../../lib/budgets';
 import { DUPLICATE_CATEGORY } from '../../hooks/useActivityBudgets';
 import type { CreateProjectOptions, NewCategory, NewEntry, NewProject } from '../../hooks/useActivityBudgets';
 import type {
-  Account, PaymentMethod, Project, ProjectCategory, ProjectScope, ProjectStatus, ProjectTransaction,
+  Account, PaymentMethod, Project, ProjectAttachment, ProjectCategory, ProjectRole, ProjectScope, ProjectStatus,
+  ProjectTransaction,
 } from '../../types';
+import { AttachmentsField } from './ShareModals';
 import {
   BUDGET_ICONS, ModalShell, SCOPE_STYLE, fill, inputCls, labelCls, parseAmount,
 } from './shared';
@@ -472,13 +474,19 @@ interface EntryModalProps {
   editing: ProjectTransaction | null;
   defaultType: 'income' | 'expense';
   defaultCategoryId?: string | null;
+  /** Rôle de l'utilisateur dans ce budget : seul le propriétaire crée des catégories. */
+  role: ProjectRole;
+  online: boolean;
+  existingAttachments: ProjectAttachment[];
+  onRemoveAttachment: (attachment: ProjectAttachment) => Promise<void>;
   onClose: () => void;
-  onSave: (data: NewEntry) => Promise<void>;
+  onSave: (data: NewEntry, files: File[]) => Promise<void>;
   onCreateCategory: (name: string) => Promise<ProjectCategory>;
 }
 
 export const EntryModal: React.FC<EntryModalProps> = ({
-  project, categories, summary, accounts, editing, defaultType, defaultCategoryId, onClose, onSave, onCreateCategory,
+  project, categories, summary, accounts, editing, defaultType, defaultCategoryId, role, online,
+  existingAttachments, onRemoveAttachment, onClose, onSave, onCreateCategory,
 }) => {
   const { t } = useLanguage();
   const { formatCurrency } = useRegion();
@@ -493,12 +501,16 @@ export const EntryModal: React.FC<EntryModalProps> = ({
   const [method, setMethod] = useState<PaymentMethod>(editing?.payment_method ?? '');
   const [note, setNote] = useState(editing?.note ?? '');
   const [sourceAccount, setSourceAccount] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
   const [creatingCat, setCreatingCat] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const linked = Boolean(editing?.source_transaction_id);
+  const needsApproval = project.requires_approval && role !== 'owner';
+  const visibleAttachments = existingAttachments.filter(a => !removedIds.includes(a.id));
   const amountNum = parseAmount(amount);
 
   // Alertes non bloquantes (on retire l'ancien montant en cas de modification)
@@ -544,6 +556,10 @@ export const EntryModal: React.FC<EntryModalProps> = ({
 
     setSaving(true);
     try {
+      for (const id of removedIds) {
+        const att = existingAttachments.find(a => a.id === id);
+        if (att) await onRemoveAttachment(att);
+      }
       await onSave({
         project_id: project.id,
         category_id: type === 'expense' && categoryId ? categoryId : null,
@@ -555,8 +571,8 @@ export const EntryModal: React.FC<EntryModalProps> = ({
         reference: reference.trim(),
         payment_method: method,
         note: note.trim(),
-        sourceAccountId: !editing && type === 'income' ? sourceAccount || null : null,
-      });
+        sourceAccountId: !editing && type === 'income' && online ? sourceAccount || null : null,
+      }, files);
     } catch (err) {
       setError(describeError(err, t));
       setSaving(false);
@@ -627,10 +643,12 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                     {c.name}
                   </button>
                 ))}
-                <button type="button" onClick={() => setCreatingCat(true)}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg border border-dashed border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20">
-                  <Plus className="w-3.5 h-3.5" /> {t('activities.entry.newCategory')}
-                </button>
+                {role === 'owner' && online && (
+                  <button type="button" onClick={() => setCreatingCat(true)}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg border border-dashed border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20">
+                    <Plus className="w-3.5 h-3.5" /> {t('activities.entry.newCategory')}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -656,7 +674,10 @@ export const EntryModal: React.FC<EntryModalProps> = ({
           </div>
         </div>
 
-        {type === 'income' && !editing && accounts.length > 0 && (
+        {type === 'income' && !editing && accounts.length > 0 && !online && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">{t('offline.cannotLinkAccount')}</p>
+        )}
+        {type === 'income' && !editing && accounts.length > 0 && online && (
           <div>
             <label className={labelCls}>{t('activities.sourceAccount')}</label>
             <select className={inputCls} value={sourceAccount} onChange={e => setSourceAccount(e.target.value)}>
@@ -671,6 +692,25 @@ export const EntryModal: React.FC<EntryModalProps> = ({
           <label className={labelCls}>{t('activities.entry.note')} <span className="text-gray-400 font-normal">({t('common2.optional')})</span></label>
           <textarea className={`${inputCls} resize-none`} rows={2} value={note} onChange={e => setNote(e.target.value)} />
         </div>
+
+        <AttachmentsField
+          existing={visibleAttachments}
+          files={files}
+          online={online}
+          onFilesChange={setFiles}
+          onRemoveExisting={a => setRemovedIds(prev => [...prev, a.id])}
+        />
+
+        {needsApproval && (
+          <div className="p-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 text-xs text-violet-700 dark:text-violet-300">
+            {t('approval.submitNote')} {editing && t('approval.resubmitNote')}
+          </div>
+        )}
+        {!online && type === 'expense' && !editing && (
+          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300">
+            {t('offline.banner')}
+          </div>
+        )}
 
         {warnings.map((w, i) => <Warning key={i}>{w}</Warning>)}
         <FormError message={error} />

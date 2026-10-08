@@ -1,23 +1,27 @@
 import React, { useMemo, useState } from 'react';
 import {
   ArrowLeft, Plus, Edit, Trash2, Download, Printer, TrendingDown, ArrowDownToLine, PiggyBank, Wallet,
-  CheckCircle2, RotateCcw, Archive, Search, Link2, AlertTriangle,
+  CheckCircle2, RotateCcw, Archive, Search, Link2, AlertTriangle, Users, History, Paperclip, Check, X,
+  CloudOff, RefreshCw, FileArchive, Clock, LogOut,
 } from 'lucide-react';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
+import { useAuth } from '../../hooks/useAuth';
 import { useActivityBudgets } from '../../hooks/useActivityBudgets';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useRegion } from '../../hooks/useRegion';
 import { useLanguage } from '../../i18n';
-import { CATEGORY_COLORS, buildJournal, buildTimeline } from '../../lib/budgets';
+import { CATEGORY_COLORS, buildJournal, buildTimeline, isCounted } from '../../lib/budgets';
+import { fileExtension } from '../../lib/files';
 import { downloadCsv, slugify } from '../../lib/csv';
 import { formatDateShort, todayISO } from '../../lib/dates';
-import type { PageId, ProjectCategory, ProjectStatus, ProjectTransaction } from '../../types';
+import type { EntryStatus, PageId, ProjectAttachment, ProjectCategory, ProjectStatus, ProjectTransaction } from '../../types';
 import { BudgetReport } from './BudgetReport';
 import { CategoryModal, EntryModal, ProjectModal, describeError } from './BudgetModals';
+import { AttachmentsModal, HistoryModal, RejectModal, ShareModal } from './ShareModals';
 import {
-  ConfirmDialog, ErrorToast, ProgressBar, SCOPE_STYLE, STATUS_PILL, STATUS_TEXT, getBudgetIcon, inputCls,
+  ConfirmDialog, ErrorToast, ProgressBar, SCOPE_STYLE, STATUS_PILL, STATUS_TEXT, fill, getBudgetIcon, inputCls,
 } from './shared';
 
 interface Props {
@@ -35,10 +39,14 @@ const tooltipStyle = { backgroundColor: '#111827', border: 'none', borderRadius:
 export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
   const { t, lang } = useLanguage();
   const { formatCurrency } = useRegion();
+  const { session } = useAuth();
+  const myEmail = (session?.user.email ?? '').toLowerCase();
   const { accounts } = useAccounts();
   const {
-    projects, categories, entries, summaries, loading,
+    userId, projects, categories, entries, attachments, summaries, loading, isOnline, pendingSync, syncNow,
+    roleOf, canEditEntry, members, removeMember,
     updateProject, addCategory, updateCategory, deleteCategory, addEntry, updateEntry, deleteEntry,
+    decideEntry, approveAllPending, addAttachments, removeAttachment, getAttachmentUrl,
   } = useActivityBudgets();
 
   const locale = lang === 'fr' ? 'fr-FR' : 'en-US';
@@ -55,11 +63,19 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
   const [deleteEntryTarget, setDeleteEntryTarget] = useState<ProjectTransaction | null>(null);
   const [deleteCategoryTarget, setDeleteCategoryTarget] = useState<ProjectCategory | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState<ProjectTransaction | null>(null);
+  const [attachmentsTarget, setAttachmentsTarget] = useState<ProjectTransaction | null>(null);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [zipBusy, setZipBusy] = useState(false);
 
   // Filtres du journal
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | EntryStatus>('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 
@@ -69,6 +85,7 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
     const q = search.trim().toLowerCase();
     return journal.filter(({ entry }) => {
       if (filterType !== 'all' && entry.type !== filterType) return false;
+      if (filterStatus !== 'all' && (entry.status ?? 'approved') !== filterStatus) return false;
       if (filterCategory === 'none' && (entry.type !== 'expense' || entry.category_id)) return false;
       if (filterCategory !== 'all' && filterCategory !== 'none' && entry.category_id !== filterCategory) return false;
       if (from && entry.date < from) return false;
@@ -76,10 +93,18 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
       if (q && !`${entry.label} ${entry.payee} ${entry.reference} ${entry.note}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [journal, search, filterType, filterCategory, from, to]);
+  }, [journal, search, filterType, filterCategory, filterStatus, from, to]);
 
-  const filtersActive = Boolean(search || filterType !== 'all' || filterCategory !== 'all' || from || to);
-  const resetFilters = () => { setSearch(''); setFilterType('all'); setFilterCategory('all'); setFrom(''); setTo(''); };
+  const filtersActive = Boolean(search || filterType !== 'all' || filterCategory !== 'all' || filterStatus !== 'all' || from || to);
+  const resetFilters = () => { setSearch(''); setFilterType('all'); setFilterCategory('all'); setFilterStatus('all'); setFrom(''); setTo(''); };
+
+  const attachmentsByEntry = useMemo(() => {
+    const map = new Map<string, ProjectAttachment[]>();
+    attachments.filter(a => a.project_id === budgetId).forEach(a => {
+      map.set(a.entry_id, [...(map.get(a.entry_id) ?? []), a]);
+    });
+    return map;
+  }, [attachments, budgetId]);
 
   if (!project || !summary) {
     return (
@@ -100,7 +125,13 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
 
   const Icon = getBudgetIcon(project.icon);
   const st = SCOPE_STYLE[project.scope];
-  const readOnly = project.status !== 'active';
+  const role = roleOf(project.id);
+  const isOwner = role === 'owner';
+  const closed = project.status !== 'active';
+  const readOnly = closed || role === 'viewer';
+  const myPending = projectEntries.filter(e => e.status === 'pending' && e.user_id === userId).length;
+  const projectMembersCount = members.filter(m => m.project_id === project.id).length;
+  const myMembership = members.find(m => m.project_id === project.id && m.email.toLowerCase() === myEmail);
   const nextColor = CATEGORY_COLORS[projectCategories.length % CATEGORY_COLORS.length];
 
   const setStatus = async (status: ProjectStatus) => {
@@ -144,7 +175,7 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
         : []),
       [],
       [t('activities.journal')],
-      [t('activities.date'), t('activities.label'), t('activities.category'), t('activities.payee'), t('activities.reference'), t('activities.method'), t('activities.inColumn'), t('activities.outColumn'), t('activities.balance'), t('activities.entry.note')],
+      [t('activities.date'), t('activities.label'), t('activities.category'), t('activities.payee'), t('activities.reference'), t('activities.method'), t('activities.inColumn'), t('activities.outColumn'), t('activities.balance'), t('activities.entry.note'), t('activities.statusLabel'), t('approval.by'), t('receipts.title')],
       ...journal.map(({ entry, balance }) => [
         entry.date,
         entry.label,
@@ -156,10 +187,76 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
         entry.type === 'expense' ? entry.amount : '',
         balance,
         entry.note,
+        t(`approval.${entry.status ?? 'approved'}`),
+        entry.created_by_email,
+        attachmentsByEntry.get(entry.id)?.length ?? 0,
       ]),
       ['', t('activities.total'), '', '', '', '', summary.funds, summary.spent, summary.cashBalance],
     ];
     downloadCsv(`budget-${slugify(project.name)}-${todayISO()}.csv`, rows);
+  };
+
+  const exportReceiptsZip = async () => {
+    const list = attachments.filter(a => a.project_id === project.id);
+    if (list.length === 0) return setNotice(t('receipts.zipEmpty'));
+    setZipBusy(true);
+    setNotice(t('receipts.zipPreparing'));
+    try {
+      const { default: JSZip } = await import('jszip');
+      const zip = new JSZip();
+      const byEntry = new Map(projectEntries.map(e => [e.id, e]));
+      const counters = new Map<string, number>();
+      let failed = 0;
+      for (const att of list) {
+        try {
+          const url = await getAttachmentUrl(att);
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(String(res.status));
+          const entry = byEntry.get(att.entry_id);
+          const n = (counters.get(att.entry_id) ?? 0) + 1;
+          counters.set(att.entry_id, n);
+          const category = entry?.category_id ? catById.get(entry.category_id)?.name : '';
+          const folder = slugify(category || t('activities.uncategorized'));
+          const base = `${entry?.date ?? ''}_${slugify(entry?.label ?? 'piece')}_${n}`;
+          zip.file(`justificatifs/${folder}/${base}.${fileExtension(att.name, att.mime)}`, await res.blob());
+        } catch {
+          failed += 1;
+        }
+      }
+      if (failed === list.length) throw new Error('all failed');
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `justificatifs-${slugify(project.name)}-${todayISO()}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      setNotice(failed > 0 ? fill(t('receipts.zipPartial'), { n: failed }) : null);
+    } catch {
+      setNotice(null);
+      setError(t('receipts.zipFailed'));
+    }
+    setZipBusy(false);
+  };
+
+  const decide = async (entry: ProjectTransaction, status: EntryStatus, reason = '') => {
+    try { await decideEntry(entry.id, status, reason); } catch (err) { setError(describeError(err, t)); }
+  };
+
+  const approveAll = async () => {
+    try { await approveAllPending(project.id); } catch (err) { setError(describeError(err, t)); }
+  };
+
+  const leaveBudget = async () => {
+    if (!myMembership) return;
+    try {
+      await removeMember(myMembership.id);
+      onNavigate('activities');
+    } catch (err) {
+      setError(describeError(err, t));
+    }
+    setLeaveOpen(false);
   };
 
   const chartData = summary.categories.map(c => ({ name: c.name, planned: c.allocated, spent: c.spent, color: c.color }));
@@ -218,31 +315,91 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
               <button onClick={exportCsv} className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-xl transition-colors">
                 <Download className="w-4 h-4" /> <span className="hidden sm:inline">{t('activities.exportCsv')}</span>
               </button>
+              <button onClick={exportReceiptsZip} disabled={zipBusy} className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-xl transition-colors disabled:opacity-50">
+                {zipBusy ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileArchive className="w-4 h-4" />} <span className="hidden sm:inline">{t('receipts.exportZip')}</span>
+              </button>
               <button onClick={() => window.print()} className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-xl transition-colors">
                 <Printer className="w-4 h-4" /> <span className="hidden sm:inline">{t('activities.print')}</span>
               </button>
-              <button onClick={() => setEditProject(true)} aria-label={t('common.edit')} className="p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl transition-colors">
-                <Edit className="w-4 h-4" />
+              <button onClick={() => setHistoryOpen(true)} className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-xl transition-colors">
+                <History className="w-4 h-4" /> <span className="hidden md:inline">{t('history.open')}</span>
               </button>
-              {project.status === 'active' ? (
-                <button onClick={() => setStatus('completed')} className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-xl transition-colors">
-                  <CheckCircle2 className="w-4 h-4" /> <span className="hidden md:inline">{t('activities.closeBudget')}</span>
-                </button>
-              ) : (
+              {isOwner ? (
                 <>
-                  <button onClick={() => setStatus('active')} className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-xl transition-colors">
-                    <RotateCcw className="w-4 h-4" /> <span className="hidden md:inline">{t('activities.reopen')}</span>
+                  <button onClick={() => setShareOpen(true)} className="flex items-center gap-2 px-3.5 py-2.5 bg-violet-50 hover:bg-violet-100 dark:bg-violet-900/20 dark:hover:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-sm font-medium rounded-xl transition-colors">
+                    <Users className="w-4 h-4" /> <span className="hidden md:inline">{t('share.manage')}</span>
+                    {projectMembersCount > 0 && <span className="text-xs px-1.5 py-0.5 rounded-full bg-violet-200 dark:bg-violet-800">{projectMembersCount}</span>}
                   </button>
-                  {project.status === 'completed' && (
-                    <button onClick={() => setStatus('archived')} className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-xl transition-colors">
-                      <Archive className="w-4 h-4" /> <span className="hidden md:inline">{t('activities.archive')}</span>
+                  <button onClick={() => setEditProject(true)} aria-label={t('common.edit')} className="p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl transition-colors">
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  {project.status === 'active' ? (
+                    <button onClick={() => setStatus('completed')} className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-xl transition-colors">
+                      <CheckCircle2 className="w-4 h-4" /> <span className="hidden md:inline">{t('activities.closeBudget')}</span>
                     </button>
+                  ) : (
+                    <>
+                      <button onClick={() => setStatus('active')} className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-xl transition-colors">
+                        <RotateCcw className="w-4 h-4" /> <span className="hidden md:inline">{t('activities.reopen')}</span>
+                      </button>
+                      {project.status === 'completed' && (
+                        <button onClick={() => setStatus('archived')} className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-xl transition-colors">
+                          <Archive className="w-4 h-4" /> <span className="hidden md:inline">{t('activities.archive')}</span>
+                        </button>
+                      )}
+                    </>
                   )}
                 </>
+              ) : (
+                myMembership && (
+                  <button onClick={() => setLeaveOpen(true)} className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-100 hover:bg-red-50 dark:bg-gray-800 dark:hover:bg-red-900/20 text-gray-700 dark:text-gray-300 hover:text-red-600 text-sm font-medium rounded-xl transition-colors">
+                    <LogOut className="w-4 h-4" /> <span className="hidden md:inline">{t('share.leave')}</span>
+                  </button>
+                )
               )}
             </div>
           </div>
         </div>
+
+        {/* Budget partagé : propriétaire et rôle */}
+        {!isOwner && (
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/10 border border-violet-100 dark:border-violet-900/30 text-sm text-violet-800 dark:text-violet-200">
+            <Users className="w-4 h-4 flex-shrink-0" />
+            <span>{t('share.sharedBy')} <strong>{project.owner_email || '—'}</strong> · {t('share.yourRole')} : <strong>{role === 'editor' ? t('share.editor') : t('share.viewer')}</strong></span>
+            {role === 'viewer' && <span className="text-xs opacity-80">— {t('share.readOnlyNote')}</span>}
+          </div>
+        )}
+
+        {/* Hors ligne / synchronisation */}
+        {(!isOnline || pendingSync.length > 0) && (
+          <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/40 text-sm text-amber-800 dark:text-amber-200">
+            <CloudOff className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1">
+              {!isOnline && <>{t('offline.banner')} </>}
+              {pendingSync.length > 0 && <strong>{fill(t('offline.queued'), { n: pendingSync.length })}</strong>}
+            </span>
+            {isOnline && pendingSync.length > 0 && (
+              <button onClick={() => void syncNow()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-200/70 dark:bg-amber-800/50 font-medium">
+                <RefreshCw className="w-3.5 h-3.5" /> {t('offline.syncNow')}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Validation des dépenses */}
+        {isOwner && summary.pendingCount > 0 && (
+          <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/10 border border-violet-200 dark:border-violet-900/40 text-sm text-violet-800 dark:text-violet-200">
+            <Clock className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1 font-medium">{fill(t('approval.banner'), { n: summary.pendingCount, amount: formatCurrency(summary.pendingAmount) })}</span>
+            <button onClick={() => { setFilterStatus('pending'); document.getElementById('journal')?.scrollIntoView({ behavior: 'smooth' }); }} className="px-3 py-1.5 rounded-lg bg-violet-200/70 dark:bg-violet-800/50 font-medium">{t('approval.review')}</button>
+            <button onClick={approveAll} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-white font-medium"><Check className="w-3.5 h-3.5" /> {t('approval.approveAll')}</button>
+          </div>
+        )}
+        {!isOwner && myPending > 0 && (
+          <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/10 border border-violet-200 dark:border-violet-900/40 text-sm text-violet-800 dark:text-violet-200">
+            <Clock className="w-4 h-4 flex-shrink-0" /> {fill(t('approval.bannerSubmitted'), { n: myPending })}
+          </div>
+        )}
 
         {/* Indicateurs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up">
@@ -267,9 +424,9 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
               <h2 className="text-base font-bold text-gray-900 dark:text-white">{t('activities.categoriesTable')}</h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">{t('activities.categoriesHint')}</p>
             </div>
-            <button onClick={() => setCategoryModal({ editing: null })} className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-50 hover:bg-violet-100 dark:bg-violet-900/20 dark:hover:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-sm font-medium rounded-xl transition-colors flex-shrink-0">
+            {isOwner && <button onClick={() => setCategoryModal({ editing: null })} className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-50 hover:bg-violet-100 dark:bg-violet-900/20 dark:hover:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-sm font-medium rounded-xl transition-colors flex-shrink-0">
               <Plus className="w-4 h-4" /> <span className="hidden sm:inline">{t('activities.addCategory')}</span>
-            </button>
+            </button>}
           </div>
 
           {summary.categories.length === 0 && summary.uncategorized.count === 0 ? (
@@ -314,8 +471,8 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
                             {!readOnly && (
                               <button onClick={() => setEntryModal({ mode: 'new', type: 'expense', categoryId: c.id })} aria-label={t('activities.addExpense')} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Plus className="w-4 h-4" /></button>
                             )}
-                            <button onClick={() => setCategoryModal({ editing: cat })} aria-label={t('common.edit')} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"><Edit className="w-4 h-4" /></button>
-                            <button onClick={() => setDeleteCategoryTarget(cat)} aria-label={t('common.delete')} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                            {isOwner && <button onClick={() => setCategoryModal({ editing: cat })} aria-label={t('common.edit')} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"><Edit className="w-4 h-4" /></button>}
+                            {isOwner && <button onClick={() => setDeleteCategoryTarget(cat)} aria-label={t('common.delete')} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Trash2 className="w-4 h-4" /></button>}
                           </div>
                         </td>
                       </tr>
@@ -399,7 +556,7 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
         )}
 
         {/* Journal de caisse */}
-        <section className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden animate-slide-up">
+        <section id="journal" className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden animate-slide-up">
           <div className="p-5 border-b border-gray-100 dark:border-gray-800 space-y-3">
             <h2 className="text-base font-bold text-gray-900 dark:text-white">{t('activities.journal')}</h2>
             <div className="flex flex-col lg:flex-row gap-2">
@@ -416,6 +573,12 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
                 <option value="all">{t('activities.allCategories')}</option>
                 {projectCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 <option value="none">{t('activities.uncategorized')}</option>
+              </select>
+              <select className={`${inputCls} lg:w-40`} value={filterStatus} onChange={e => setFilterStatus(e.target.value as typeof filterStatus)} aria-label={t('activities.statusLabel')}>
+                <option value="all">{t('approval.allStatuses')}</option>
+                <option value="pending">{t('approval.pending')}</option>
+                <option value="approved">{t('approval.approved')}</option>
+                <option value="rejected">{t('approval.rejected')}</option>
               </select>
               <input type="date" className={`${inputCls} lg:w-40`} value={from} onChange={e => setFrom(e.target.value)} aria-label={t('activities.from')} title={t('activities.from')} />
               <input type="date" className={`${inputCls} lg:w-40`} value={to} onChange={e => setTo(e.target.value)} aria-label={t('activities.to')} title={t('activities.to')} />
@@ -448,14 +611,35 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {filteredJournal.map(({ entry, balance }) => {
                     const cat = entry.category_id ? catById.get(entry.category_id) : undefined;
+                    const status = entry.status ?? 'approved';
+                    const files = attachmentsByEntry.get(entry.id) ?? [];
+                    const editable = canEditEntry(entry);
+                    const canDelete = editable || Boolean(entry.offline);
                     return (
-                      <tr key={entry.id} className="group hover:bg-gray-50 dark:hover:bg-gray-800/40">
+                      <tr key={entry.id} className={`group hover:bg-gray-50 dark:hover:bg-gray-800/40 ${status === 'rejected' ? 'opacity-70' : ''}`}>
                         <td className="px-5 py-3 whitespace-nowrap text-gray-500 dark:text-gray-400">{formatDateShort(entry.date, locale)}</td>
                         <td className="px-3 py-3">
                           <div className="font-medium text-gray-900 dark:text-white flex items-center gap-1.5">
                             {entry.label}
                             {entry.source_transaction_id && <span title={t('activities.entry.linkedBadge')}><Link2 className="w-3 h-3 text-blue-500" /></span>}
+                            {entry.offline && <span title={t('offline.badge')}><CloudOff className="w-3 h-3 text-amber-500" /></span>}
+                            {status !== 'approved' && (
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${status === 'pending' ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'}`} title={t('approval.notCounted')}>
+                                {t(`approval.${status}`)}
+                              </span>
+                            )}
+                            {files.length > 0 && (
+                              <button type="button" onClick={() => setAttachmentsTarget(entry)} className="inline-flex items-center gap-0.5 text-xs text-violet-600 dark:text-violet-400 hover:underline" aria-label={`${t('receipts.title')} ${files.length}`}>
+                                <Paperclip className="w-3 h-3" />{files.length}
+                              </button>
+                            )}
                           </div>
+                          {status === 'rejected' && entry.rejection_reason && (
+                            <div className="text-xs text-red-500">{t('approval.reasonLabel')} : {entry.rejection_reason}</div>
+                          )}
+                          {entry.created_by_email && entry.user_id !== userId && (
+                            <div className="text-xs text-gray-400">{t('approval.by')} {entry.created_by_email}</div>
+                          )}
                           {(entry.payment_method || entry.note) && (
                             <div className="text-xs text-gray-400">
                               {entry.payment_method && t(`activities.methods.${entry.payment_method}`)}
@@ -479,9 +663,20 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
                         <td className="px-3 py-3 text-right tabular-nums font-medium text-red-600 dark:text-red-400">{entry.type === 'expense' ? formatCurrency(entry.amount) : ''}</td>
                         <td className={`px-3 py-3 text-right tabular-nums font-semibold ${balance < 0 ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>{formatCurrency(balance)}</td>
                         <td className="px-3 py-3">
-                          <div className="flex justify-end gap-0.5 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => setEntryModal({ mode: 'edit', entry })} aria-label={t('common.edit')} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"><Edit className="w-4 h-4" /></button>
-                            <button onClick={() => setDeleteEntryTarget(entry)} aria-label={t('common.delete')} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                          <div className="flex justify-end gap-0.5">
+                            {isOwner && status === 'pending' && !entry.offline && (
+                              <>
+                                <button onClick={() => decide(entry, 'approved')} aria-label={`${t('approval.approve')} ${entry.label}`} title={t('approval.approve')} className="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg"><Check className="w-4 h-4" /></button>
+                                <button onClick={() => setRejectTarget(entry)} aria-label={`${t('approval.reject')} ${entry.label}`} title={t('approval.reject')} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><X className="w-4 h-4" /></button>
+                              </>
+                            )}
+                            {isOwner && status === 'rejected' && (
+                              <button onClick={() => decide(entry, 'approved')} aria-label={`${t('approval.approve')} ${entry.label}`} title={t('approval.approve')} className="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg"><Check className="w-4 h-4" /></button>
+                            )}
+                            <div className="flex gap-0.5 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                              {editable && <button onClick={() => setEntryModal({ mode: 'edit', entry })} aria-label={t('common.edit')} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"><Edit className="w-4 h-4" /></button>}
+                              {canDelete && <button onClick={() => setDeleteEntryTarget(entry)} aria-label={t('common.delete')} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Trash2 className="w-4 h-4" /></button>}
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -495,7 +690,7 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
       </div>
 
       {/* Rapport imprimable */}
-      <BudgetReport project={project} summary={summary} journal={journal} categories={projectCategories} t={t} locale={locale} money={formatCurrency} />
+      <BudgetReport project={project} summary={summary} journal={journal.filter(l => isCounted(l.entry))} categories={projectCategories} t={t} locale={locale} money={formatCurrency} />
 
       {/* Fenêtres */}
       {entryModal && (
@@ -507,14 +702,27 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
           editing={entryModal.mode === 'edit' ? entryModal.entry : null}
           defaultType={entryModal.mode === 'new' ? entryModal.type : entryModal.entry.type}
           defaultCategoryId={entryModal.mode === 'new' ? entryModal.categoryId : undefined}
+          role={role}
+          online={isOnline}
+          existingAttachments={entryModal.mode === 'edit' ? attachmentsByEntry.get(entryModal.entry.id) ?? [] : []}
+          onRemoveAttachment={removeAttachment}
           onClose={() => setEntryModal(null)}
           onCreateCategory={name => addCategory(project.id, { name, allocated_amount: 0, color: nextColor })}
-          onSave={async data => {
+          onSave={async (data, files) => {
+            let saved: ProjectTransaction;
             if (entryModal.mode === 'edit') {
-              const { sourceAccountId: _s, projectName: _p, ...rest } = data;
-              await updateEntry(entryModal.entry.id, rest);
+              const { sourceAccountId: _s, projectName: _p, project_id: _pid, ...rest } = data;
+              saved = await updateEntry(entryModal.entry.id, rest);
             } else {
-              await addEntry(data);
+              saved = await addEntry(data);
+              if (saved.offline) setNotice(t('offline.savedLocally'));
+            }
+            if (files.length > 0 && !saved.offline) {
+              const report = await addAttachments(saved, files);
+              if (report.failed.length > 0) {
+                const why = (r: string) => (r === 'type' ? t('receipts.failedType') : r === 'size' ? t('receipts.failedSize') : t('receipts.failedUpload'));
+                setError(`${t('receipts.savedButFailed')} : ${report.failed.map(f => `${f.name} (${why(f.reason)})`).join(', ')}`);
+              }
             }
             setEntryModal(null);
           }}
@@ -569,6 +777,50 @@ export const BudgetDetail: React.FC<Props> = ({ budgetId, onNavigate }) => {
         />
       )}
 
+      {shareOpen && <ShareModal project={project} onClose={() => setShareOpen(false)} />}
+      {historyOpen && <HistoryModal projectId={project.id} onClose={() => setHistoryOpen(false)} />}
+      {rejectTarget && (
+        <RejectModal
+          entry={rejectTarget}
+          onClose={() => setRejectTarget(null)}
+          onConfirm={async reason => { await decide(rejectTarget, 'rejected', reason); setRejectTarget(null); }}
+        />
+      )}
+      {attachmentsTarget && (
+        <AttachmentsModal
+          entry={attachmentsTarget}
+          attachments={attachmentsByEntry.get(attachmentsTarget.id) ?? []}
+          canRemove={a => isOwner || (role === 'editor' && a.user_id === userId)}
+          onClose={() => setAttachmentsTarget(null)}
+        />
+      )}
+      {leaveOpen && (
+        <ConfirmDialog
+          message={t('share.leaveConfirm')}
+          confirmLabel={t('share.leave')}
+          cancelLabel={t('common.cancel')}
+          onConfirm={leaveBudget}
+          onCancel={() => setLeaveOpen(false)}
+        />
+      )}
+
+      {/* Bouton flottant (mobile) : saisie rapide d'une dépense */}
+      {!readOnly && (
+        <button
+          onClick={() => setEntryModal({ mode: 'new', type: 'expense' })}
+          aria-label={t('activities.addExpense')}
+          className="lg:hidden fixed bottom-5 right-5 z-30 w-14 h-14 rounded-full bg-gradient-to-br from-red-500 to-rose-500 text-white shadow-xl shadow-red-500/30 flex items-center justify-center print:hidden"
+        >
+          <Plus className="w-7 h-7" />
+        </button>
+      )}
+
+      {notice && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 max-w-sm px-4 py-3 rounded-xl bg-gray-900 text-white text-sm shadow-lg z-[70] flex items-center gap-3 print:hidden">
+          <span>{notice}</span>
+          <button onClick={() => setNotice(null)} aria-label={t('common.close')} className="text-gray-400 hover:text-white"><X className="w-4 h-4" /></button>
+        </div>
+      )}
       {error && <ErrorToast message={error} onClose={() => setError(null)} />}
     </>
   );

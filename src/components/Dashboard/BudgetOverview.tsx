@@ -28,7 +28,8 @@ export const BudgetOverview: React.FC<Props> = ({ onNavigate }) => {
   const { formatCurrency } = useRegion();
   const { members } = useFamilyMembers();
   const { transactions } = useTransactions();
-  const { projects, summaries } = useActivityBudgets();
+  const { userId, projects: allProjects, summaries } = useActivityBudgets();
+  const projects = useMemo(() => allProjects.filter(p => p.user_id === userId), [allProjects, userId]);
 
   const family = useMemo(() => {
     const month = monthKey();

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import {
   LayoutDashboard, CreditCard, Wallet, Target, Shield, Activity, Settings as SettingsIcon,
-  LogOut, Menu, X, Users, Landmark, Briefcase,
+  LogOut, Menu, X, Users, Landmark, Briefcase, Home, ShieldCheck,
 } from 'lucide-react';
 import { useLanguage } from '../../i18n';
+import { Logo } from '../Brand/Logo';
 import { useAuth } from '../../hooks/useAuth';
+import { useAccess } from '../../hooks/useAccess';
 import type { PageId } from '../../types';
 
 interface SidebarProps {
@@ -23,9 +25,22 @@ interface MenuItem {
 export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
   const { t } = useLanguage();
   const { signOut } = useAuth();
+  const { isMember, canViewFamily, isPlatformAdmin } = useAccess();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const groups: { title: string; items: MenuItem[] }[] = [
+  const memberGroups: { title: string; items: MenuItem[] }[] = [
+    { title: t('nav.myspace'), items: [{ icon: Home, label: t('nav.myspace'), id: 'myspace' }] },
+    {
+      title: t('nav.budgets'),
+      items: [
+        ...(canViewFamily ? [{ icon: Users, label: t('family.title'), id: 'family' as PageId, accent: 'bg-rose-500' }] : []),
+        { icon: Briefcase, label: t('nav.sharedBudgets'), id: 'activities', accent: 'bg-violet-500' },
+      ],
+    },
+    { title: t('nav.tools'), items: [{ icon: SettingsIcon, label: t('common.settings'), id: 'settings' }] },
+  ];
+
+  const ownerGroups: { title: string; items: MenuItem[] }[] = [
     {
       title: t('nav.finances'),
       items: [
@@ -47,11 +62,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) =
     {
       title: t('nav.tools'),
       items: [
+        ...(isPlatformAdmin ? [{ icon: ShieldCheck, label: t('nav.admin'), id: 'admin' as PageId, accent: 'bg-indigo-500' }] : []),
         { icon: Shield, label: t('common.vault'), id: 'vault' },
         { icon: SettingsIcon, label: t('common.settings'), id: 'settings' },
       ],
     },
   ];
+
+  const groups = isMember ? memberGroups : ownerGroups;
 
   const handlePageChange = (page: PageId) => {
     onPageChange(page);
@@ -83,9 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) =
       `}>
         <div className="p-6 border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-md">
-              <Wallet className="w-6 h-6 text-white" />
-            </div>
+            <Logo size={40} />
             <div>
               <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">FinTrack</span>
               <div className="text-xs text-gray-400 dark:text-gray-500">Gestion Financière</div>

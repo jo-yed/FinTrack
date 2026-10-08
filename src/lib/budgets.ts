@@ -2,6 +2,9 @@ import type { Project, ProjectCategory, ProjectTransaction } from '../types';
 
 export const WARNING_THRESHOLD = 80;
 
+/** Seules les écritures approuvées comptent dans les totaux (statut absent = approuvé, anciennes données). */
+export const isCounted = (e: Pick<ProjectTransaction, 'status'>): boolean => (e.status ?? 'approved') === 'approved';
+
 /** Catégorie de la transaction « principale » générée quand on décaisse depuis un compte vers un budget. */
 export const BUDGET_TX_CATEGORY = 'Budgets activités';
 
@@ -56,6 +59,10 @@ export interface BudgetSummary {
   uncategorized: CategorySummary;
   expenseCount: number;
   fundingCount: number;
+  /** Écritures en attente de validation (non comptées dans les totaux). */
+  pendingCount: number;
+  pendingAmount: number;
+  rejectedCount: number;
 }
 
 export function summarizeBudget(
@@ -63,8 +70,10 @@ export function summarizeBudget(
   categories: ProjectCategory[],
   entries: ProjectTransaction[],
 ): BudgetSummary {
-  const funds = round2(entries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0));
-  const expenses = entries.filter(e => e.type === 'expense');
+  const counted = entries.filter(isCounted);
+  const pending = entries.filter(e => e.status === 'pending');
+  const funds = round2(counted.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0));
+  const expenses = counted.filter(e => e.type === 'expense');
   const spent = round2(expenses.reduce((s, e) => s + e.amount, 0));
   const target = round2(project.target_amount || 0);
   const base = target > 0 ? target : funds;
@@ -125,7 +134,10 @@ export function summarizeBudget(
     categories: catSummaries,
     uncategorized,
     expenseCount: expenses.length,
-    fundingCount: entries.length - expenses.length,
+    fundingCount: counted.length - expenses.length,
+    pendingCount: pending.length,
+    pendingAmount: round2(pending.reduce((s, e) => s + (e.type === 'expense' ? e.amount : 0), 0)),
+    rejectedCount: entries.filter(e => e.status === 'rejected').length,
   };
 }
 
@@ -142,7 +154,7 @@ export function buildJournal(entries: ProjectTransaction[]): JournalLine[] {
   );
   let balance = 0;
   return sorted.map(entry => {
-    balance = round2(balance + (entry.type === 'income' ? entry.amount : -entry.amount));
+    if (isCounted(entry)) balance = round2(balance + (entry.type === 'income' ? entry.amount : -entry.amount));
     return { entry, balance };
   });
 }
@@ -157,7 +169,7 @@ export interface TimelinePoint {
 /** Courbe cumulée dépenses / fonds par jour. */
 export function buildTimeline(entries: ProjectTransaction[]): TimelinePoint[] {
   const byDate = new Map<string, { spent: number; funds: number }>();
-  entries.forEach(e => {
+  entries.filter(isCounted).forEach(e => {
     const cur = byDate.get(e.date) || { spent: 0, funds: 0 };
     if (e.type === 'expense') cur.spent += e.amount;
     else cur.funds += e.amount;

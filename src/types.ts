@@ -81,6 +81,8 @@ export interface FamilyMember {
 }
 
 export type PageId =
+  | 'myspace'
+  | 'admin'
   | 'dashboard'
   | 'transactions'
   | 'budgets'
@@ -93,7 +95,7 @@ export type PageId =
   | 'settings';
 
 export const PAGE_IDS: PageId[] = [
-  'dashboard', 'transactions', 'budgets', 'reports', 'family',
+  'myspace', 'admin', 'dashboard', 'transactions', 'budgets', 'reports', 'family',
   'accounts', 'activities', 'vault', 'goals', 'settings',
 ];
 
@@ -116,6 +118,9 @@ export interface Project {
   end_date: string | null;
   code: string;
   responsible: string;
+  /** Si vrai, les dépenses saisies par un éditeur doivent être validées par le propriétaire. */
+  requires_approval: boolean;
+  owner_email: string;
   created_at: string;
 }
 
@@ -133,6 +138,9 @@ export interface ProjectCategory {
 
 export type PaymentMethod = '' | 'cash' | 'transfer' | 'cheque' | 'mobile_money' | 'card';
 
+export type EntryStatus = 'pending' | 'approved' | 'rejected';
+export type ProjectRole = 'owner' | 'editor' | 'viewer';
+
 /** Écriture du journal d'un budget : income = fonds reçus (décaissement vers le budget), expense = dépense. */
 export interface ProjectTransaction {
   id: string;
@@ -148,6 +156,45 @@ export interface ProjectTransaction {
   payment_method: PaymentMethod;
   note: string;
   source_transaction_id: string | null;
+  status: EntryStatus;
+  approved_by: string | null;
+  approved_at: string | null;
+  rejection_reason: string;
+  created_by_email: string;
+  created_at: string;
+  /** Écriture saisie hors ligne, pas encore synchronisée (local uniquement). */
+  offline?: boolean;
+}
+
+export interface ProjectMember {
+  id: string;
+  project_id: string;
+  email: string;
+  role: Exclude<ProjectRole, 'owner'>;
+  invited_by: string | null;
+  created_at: string;
+}
+
+export interface ProjectAttachment {
+  id: string;
+  project_id: string;
+  entry_id: string;
+  user_id: string;
+  path: string;
+  name: string;
+  mime: string;
+  size: number;
+  created_at: string;
+}
+
+export interface AuditEvent {
+  id: string;
+  project_id: string;
+  entry_id: string | null;
+  actor: string | null;
+  actor_email: string;
+  action: string;
+  details: Record<string, unknown>;
   created_at: string;
 }
 
@@ -162,3 +209,68 @@ export interface VaultSettings {
 export type Language = 'fr' | 'en';
 
 export type Theme = 'light' | 'dark';
+
+export type AccessStatus = 'requested' | 'active' | 'suspended' | 'rejected';
+
+/** Accès d'un membre de famille (connexion par téléphone) validé par l'administrateur de sa famille. */
+export interface FamilyAccess {
+  id: string;
+  owner_id: string | null;
+  member_user_id: string;
+  family_member_id: string | null;
+  full_name: string;
+  phone: string;
+  login_email: string;
+  request_code: string;
+  status: AccessStatus;
+  perm_add_expenses: boolean;
+  perm_view_family: boolean;
+  requested_at: string;
+  approved_at: string | null;
+}
+
+export interface AdminUserRow {
+  id: string;
+  email: string | null;
+  full_name: string;
+  phone: string;
+  account_type: 'standard' | 'member';
+  created_at: string;
+  last_sign_in_at: string | null;
+  confirmed: boolean;
+  banned: boolean;
+  is_admin: boolean;
+  budgets: number;
+  transactions: number;
+  access_status: AccessStatus | null;
+  family_owner_email: string | null;
+}
+
+export interface AdminOverview {
+  users: number;
+  confirmed_users: number;
+  banned_users: number;
+  member_accounts: number;
+  pending_requests: number;
+  families: number;
+  new_7d: number;
+  new_30d: number;
+  active_7d: number;
+  budgets: number;
+  entries: number;
+  transactions: number;
+  attachments: number;
+  attachments_bytes: number;
+  vaults: number;
+}
+
+export interface PlatformAuditEvent {
+  id: string;
+  actor: string | null;
+  actor_email: string;
+  action: string;
+  target_id: string | null;
+  target_label: string;
+  details: Record<string, unknown>;
+  created_at: string;
+}
