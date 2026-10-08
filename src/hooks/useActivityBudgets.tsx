@@ -506,7 +506,10 @@ export const ActivityBudgetsProvider: React.FC<{ children: React.ReactNode }> = 
   }, []);
 
   const deleteProject = useCallback(async (id: string) => {
+    // Les fichiers partent AVANT le budget : une fois le budget supprimé, les règles du stockage
+    // (qui s'appuient sur le rôle dans le budget) n'autoriseraient plus leur suppression.
     const files = attachments.filter(a => a.project_id === id).map(a => a.path);
+    if (files.length > 0) await removeStorageFiles(files);
     const { error: err } = await supabase.from('projects').delete().eq('id', id);
     if (err) throw mapError(err);
     setProjects(prev => prev.filter(p => p.id !== id));
@@ -514,7 +517,6 @@ export const ActivityBudgetsProvider: React.FC<{ children: React.ReactNode }> = 
     setEntries(prev => prev.filter(e => e.project_id !== id));
     setMembers(prev => prev.filter(m => m.project_id !== id));
     setAttachments(prev => prev.filter(a => a.project_id !== id));
-    if (files.length > 0) await removeStorageFiles(files);
   }, [attachments, removeStorageFiles]);
 
   const addProject = useCallback(async (project: NewProject, options?: CreateProjectOptions) => {
