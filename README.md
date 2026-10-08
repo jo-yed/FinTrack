@@ -18,7 +18,8 @@ Gestion financière personnelle, professionnelle et familiale (React + TypeScrip
 | **Accès famille par téléphone** | Un membre de la famille se connecte avec **son nom et son numéro de téléphone** (sans e-mail). Sa demande doit être **validée par l'administrateur de sa famille** (code à lui transmettre par WhatsApp/SMS), qui choisit ses droits précis. |
 | **Super administrateur** | Console réservée (double authentification obligatoire) : statistiques, comptes, suspension / déconnexion / suppression, annonces à tous les utilisateurs, journal d'audit. |
 | **Plafonds mensuels · Objectifs · Coffre-fort** | Limites par catégorie, épargne, coffre chiffré (AES-256-GCM, clé dérivée PBKDF2-SHA256). |
-| **Application mobile** | Installable (PWA), ouverture hors ligne, saisie de dépenses sans connexion (envoi automatique au retour du réseau). |
+| **Profil et avatars** | Nom complet affiché partout (en-tête, menu, salutation), à compléter à la première connexion. Avatar dessiné selon le **sexe**, la **tranche d'âge** (enfant, adolescent, adulte, senior) et le **teint**, ou photo personnelle (réduite à ~10 Ko, visible de vous seul). Les membres de la famille ont leur propre avatar. |
+| **Application mobile** | Installable (PWA), ouverture hors ligne, saisie de dépenses sans connexion (envoi automatique au retour du réseau). Écran de lancement animé (CSS pur, affiché avant même le chargement du code) et préchargement discret des pages au repos (désactivé en mode économie de données). |
 
 ## Accès famille par téléphone
 
