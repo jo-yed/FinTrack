@@ -3,6 +3,7 @@ import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2, MailChe
 import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../i18n';
 import { PoweredBy } from '../Layout/PoweredBy';
+import { GUIDE_URL } from '../../lib/guide';
 import { Logo } from '../Brand/Logo';
 import { fill } from '../Activities/shared';
 import { ApiError, apiErrorKey, callApi } from '../../lib/api';
@@ -78,7 +79,12 @@ const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <span className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">FinTrack</span>
           </div>
           {children}
-          <PoweredBy className="mt-8" />
+          <p className="mt-6 text-center">
+            <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 underline-offset-2 hover:underline">
+              {t('guide.link')}
+            </a>
+          </p>
+          <PoweredBy className="mt-3" />
         </div>
       </div>
     </div>

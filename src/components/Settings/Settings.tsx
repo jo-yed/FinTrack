@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Globe, Moon, Sun, DollarSign, Bell, Shield, LogOut, Mail, Check, ChevronRight, Tags, Plus, X, Smartphone, Download, KeyRound, Loader2 } from 'lucide-react';
+import { User, Globe, Moon, Sun, DollarSign, Bell, Shield, LogOut, Mail, Check, ChevronRight, Tags, Plus, X, Smartphone, Download, KeyRound, Loader2, FileText } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
 import { useLanguage } from '../../i18n';
 import { useRegion } from '../../hooks/useRegion';
@@ -13,6 +13,7 @@ import { supabase } from '../../lib/supabase';
 import { formatPhone } from '../../lib/phone';
 import { TwoFactorSection } from '../Security/TwoFactor';
 import { Avatar } from '../Brand/Avatar';
+import { GUIDE_URL } from '../../lib/guide';
 import { useProfile } from '../../hooks/useProfile';
 
 const CURRENCIES = [
@@ -150,6 +151,16 @@ export const Settings: React.FC = () => {
             </button>
           )}
         </SettingsRow>
+        <SettingsRow label={t('guide.title')} desc={t('guide.desc')}>
+          <a
+            href={GUIDE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm font-medium rounded-xl transition-colors"
+          >
+            <FileText className="w-4 h-4" /> {t('guide.open')}
+          </a>
+        </SettingsRow>
       </SettingsSection>
 
       {/* Sécurité du compte */}
@@ -224,10 +235,10 @@ interface SettingsRowProps {
 
 const SettingsRow: React.FC<SettingsRowProps> = ({ label, desc, children }) => {
   return (
-    <div className="flex items-center justify-between py-3.5">
-      <div className="min-w-0 mr-4">
+    <div className="flex items-center justify-between gap-3 py-3.5">
+      <div className="min-w-0">
         <p className="text-sm font-medium text-gray-900 dark:text-white">{label}</p>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">{desc}</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">{desc}</p>
       </div>
       <div className="flex-shrink-0">{children}</div>
     </div>

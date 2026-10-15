@@ -25,12 +25,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCommand, onNavigate }) => 
               {t('profile.hello').replace('{name}', firstName)}
             </p>
           )}
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white truncate">
+          <h2 className="hidden sm:block text-lg font-bold text-gray-900 dark:text-white truncate">
             {new Date().toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
               weekday: 'long',
               day: 'numeric',
               month: 'long',
             })}
+          </h2>
+          <h2 className="sm:hidden text-base font-bold text-gray-900 dark:text-white truncate">
+            {firstName
+              ? t('profile.hello').replace('{name}', firstName)
+              : new Date().toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short' })}
           </h2>
         </div>
 

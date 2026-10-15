@@ -1,7 +1,7 @@
 /* Service worker FinTrack : démarrage rapide et ouverture hors ligne de l'application.
  * Les données (Supabase, domaine différent) ne sont JAMAIS mises en cache ici :
  * les dépenses saisies hors ligne sont gérées par l'application (file d'attente locale). */
-const VERSION = 'v2';
+const VERSION = 'v3';
 const CACHE = `fintrack-${VERSION}`;
 const SHELL = ['/', '/index.html', '/favicon.svg', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png'];
 
@@ -38,6 +38,24 @@ self.addEventListener('fetch', event => {
           return response;
         })
         .catch(() => caches.match('/index.html').then(cached => cached || caches.match('/'))),
+    );
+    return;
+  }
+
+  // Guide d'utilisation (PDF) : mis en cache à la première ouverture, ensuite lisible sans connexion
+  if (url.pathname === '/guide-fintrack.pdf') {
+    event.respondWith(
+      caches.match('/guide-fintrack.pdf').then(cached => {
+        const refresh = fetch('/guide-fintrack.pdf').then(response => {
+          if (response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE).then(cache => cache.put('/guide-fintrack.pdf', copy));
+          }
+          return response;
+        });
+        if (cached) { refresh.catch(() => undefined); return cached; }
+        return refresh;
+      }),
     );
     return;
   }

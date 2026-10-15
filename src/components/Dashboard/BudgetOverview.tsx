@@ -136,7 +136,7 @@ export const BudgetOverview: React.FC<Props> = ({ onNavigate }) => {
               </div>
               {activities.base > 0 && <ProgressBar progress={activities.progress} status={status(activities.progress, true, activities.spent)} />}
 
-              <div className="grid grid-cols-2 gap-3 mt-4">
+              <div className="grid grid-cols-1 min-[440px]:grid-cols-2 gap-3 mt-4">
                 <Line dot="bg-blue-500" label={`${t('activities.dashboard.personalLine')} (${activities.personal.count})`} spent={formatCurrency(activities.personal.spent)} />
                 <Line dot="bg-violet-500" label={`${t('activities.dashboard.professionalLine')} (${activities.professional.count})`} spent={formatCurrency(activities.professional.spent)} />
               </div>
@@ -157,7 +157,7 @@ export const BudgetOverview: React.FC<Props> = ({ onNavigate }) => {
 const Figure: React.FC<{ label: string; value: string; tone?: string }> = ({ label, value, tone = 'text-gray-900 dark:text-white' }) => (
   <div>
     <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">{label}</p>
-    <p className={`text-base sm:text-lg font-bold ${tone} break-words`}>{value}</p>
+    <p className={`text-sm sm:text-lg font-bold whitespace-nowrap ${tone}`}>{value}</p>
   </div>
 );
 
@@ -165,6 +165,6 @@ const Line: React.FC<{ dot: string; label: string; spent: string }> = ({ dot, la
   <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800/50">
     <span className={`w-2 h-2 rounded-full ${dot}`} />
     <span className="text-xs text-gray-500 dark:text-gray-400 flex-1">{label}</span>
-    <span className="text-xs font-semibold text-gray-900 dark:text-white">{spent}</span>
+    <span className="text-xs font-semibold whitespace-nowrap text-gray-900 dark:text-white">{spent}</span>
   </div>
 );

@@ -223,10 +223,10 @@ export const TransactionList: React.FC<TransactionListProps> = ({ quickAddSignal
             {filtered.map((tx, index) => (
               <div
                 key={tx.id}
-                className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors group animate-fade-in"
+                className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5 sm:py-4 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors group animate-fade-in"
                 style={{ animationDelay: `${index * 30}ms` }}
               >
-                <div className="flex items-center gap-4 min-w-0">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                     tx.type === 'income'
                       ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400'
@@ -237,7 +237,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ quickAddSignal
 
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{tx.description}</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                       <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">{tx.category}</span>
                       <span>•</span>
                       <span>{formatDateShort(tx.date, lang === 'fr' ? 'fr-FR' : 'en-US')}</span>
@@ -286,14 +286,14 @@ export const TransactionList: React.FC<TransactionListProps> = ({ quickAddSignal
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <p className={`text-sm font-semibold ${
+                <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-3 flex-shrink-0">
+                  <p className={`text-sm font-semibold whitespace-nowrap ${
                     tx.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
                   }`}>
                     {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                   </p>
 
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-0.5 sm:gap-1 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                     <button
                       onClick={() => handleEdit(tx)}
                       className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"

@@ -97,6 +97,7 @@ export const FamilyList: React.FC = () => {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setShowApprove(true)}
+              aria-label={t('familyAccess.validateRequest')}
               className="flex items-center gap-2 px-4 py-2.5 bg-violet-50 hover:bg-violet-100 dark:bg-violet-900/20 dark:hover:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-sm font-medium rounded-xl transition-colors"
             >
               <KeyRound className="w-4 h-4" />

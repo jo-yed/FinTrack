@@ -36,6 +36,12 @@ export const extra4Fr = {
     promptAvatar: 'Complétez votre profil : sexe et tranche d\'âge pour un avatar à votre image.',
     complete: 'Compléter',
   },
+  guide: {
+    title: 'Guide d\'utilisation',
+    desc: 'Guide illustré en PDF : installer l\'application, créer son compte, saisir une dépense, inviter sa famille… Il s\'ouvre aussi sans connexion une fois consulté.',
+    open: 'Ouvrir',
+    link: 'Guide d\'utilisation (PDF)',
+  },
   splash: {
     m1: 'Comptage des pièces…',
     m2: 'Rassemblement de la famille…',
@@ -79,6 +85,12 @@ export const extra4En = {
     promptName: 'Welcome! Enter your name and pick your avatar.',
     promptAvatar: 'Complete your profile: gender and age group for an avatar that looks like you.',
     complete: 'Complete',
+  },
+  guide: {
+    title: 'User guide',
+    desc: 'Illustrated PDF guide (in French): install the app, create your account, record an expense, invite your family… It also opens offline once viewed.',
+    open: 'Open',
+    link: 'User guide (PDF, French)',
   },
   splash: {
     m1: 'Counting the coins…',
