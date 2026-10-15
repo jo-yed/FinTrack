@@ -235,7 +235,7 @@ interface SettingsRowProps {
 
 const SettingsRow: React.FC<SettingsRowProps> = ({ label, desc, children }) => {
   return (
-    <div className="flex items-center justify-between gap-3 py-3.5">
+    <div className="flex flex-col items-start gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 py-3.5">
       <div className="min-w-0">
         <p className="text-sm font-medium text-gray-900 dark:text-white">{label}</p>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">{desc}</p>

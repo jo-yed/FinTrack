@@ -17,7 +17,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCommand, onNavigate }) => 
   const { firstName } = useProfile();
 
   return (
-    <header className="print:hidden sticky top-0 z-20 bg-white/80 dark:bg-gray-900/80 glass border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+    <header className="print:hidden sticky top-0 z-20 bg-white/80 dark:bg-gray-900/80 glass border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-4">
       <div className="flex items-center justify-between ml-12 lg:ml-0">
         <div className="min-w-0">
           {firstName && (
@@ -54,7 +54,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCommand, onNavigate }) => 
 
           <button
             onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            className="hidden sm:flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
           >
             <Globe className="w-4 h-4" />
             <span className="uppercase">{lang}</span>
